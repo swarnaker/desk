@@ -9,13 +9,15 @@ import type { RadarPayload } from "@/lib/line/types";
 import { useWatch } from "@/hooks/useWatch";
 import { useRunnerAlerts } from "@/hooks/useRunnerAlerts";
 
-function useRadar() {
+function useRadar(enabled: boolean) {
   return useQuery({
     queryKey: ["radar"],
     queryFn: async () => {
       const res = await fetch("/api/radar", { cache: "no-store" });
+      if (!res.ok) return null;
       return (await res.json()) as RadarPayload;
     },
+    enabled,
     refetchInterval: 20_000,
   });
 }
@@ -32,9 +34,9 @@ export function Header({ signedIn = false }: { signedIn?: boolean }) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-  const { data } = useRadar();
+  const { data } = useRadar(signedIn && path !== "/login");
   const watch = useWatch();
-  useRunnerAlerts(data, watch.ids, watch.file.items.length);
+  useRunnerAlerts(data ?? undefined, watch.ids, watch.file.items.length);
   const tokens = data?.tokens || [];
   const pons = tokens.filter((t) => t.pad === "PONS").length;
   const o1 = tokens.filter((t) => t.pad === "O1").length;

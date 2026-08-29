@@ -112,7 +112,7 @@ function matchRow(row: TokenRow, f: Filters, watchSet: Set<string>): boolean {
   if (!passesActivityGate(row, watchSet)) return false;
   if (isBoostedHidden(row) && !watched(row, watchSet)) return false;
   // BOOK: hide 0 / missing 1h vol unless watched. NEW/STRETCH unchanged.
-  if (row.lane === "BOOK" && !(row.vol1hUsd > 0) && !watched(row, watchSet)) return false;
+  if (row.lane === "BOOK" && !((row.vol1hUsd ?? 0) > 0) && !watched(row, watchSet)) return false;
   if (f.pad !== "ALL" && row.pad !== f.pad) return false;
   if (f.liqMin && (row.liqUsd ?? 0) < f.liqMin) return false;
   if (f.mcapMin && (row.mcapUsd ?? 0) < f.mcapMin) return false;
