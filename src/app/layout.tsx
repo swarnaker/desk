@@ -22,9 +22,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className="min-h-screen bg-bg text-ink">
         <Providers>
-          <Header signedIn={signedIn} />
+          {signedIn ? <Header signedIn /> : null}
           <main className="mx-auto max-w-[1600px] px-3 pb-16 pt-2">{children}</main>
-          <HealthFooter />
+          {signedIn ? <HealthFooter signedIn /> : null}
         </Providers>
       </body>
     </html>

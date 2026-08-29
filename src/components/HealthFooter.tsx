@@ -28,7 +28,7 @@ function ago(iso: string | null | undefined): string {
   return Math.floor(s / 3600) + "h";
 }
 
-export function HealthFooter() {
+export function HealthFooter({ signedIn = false }: { signedIn?: boolean }) {
   const ctx = useRadarFiltersOptional();
   const ageGate = ctx?.filters.ageGate ?? "6h";
   const curve = ctx?.filters.curve ?? false;
@@ -36,10 +36,15 @@ export function HealthFooter() {
   const watchedIds = watch.file.items.map((i) => i.chain + ":" + i.ca);
   const { data } = useQuery({
     queryKey: ["radar", ageGate, curve, watchedIds.join(",")],
-    queryFn: async () => (await fetch(radarApiPath(ageGate, curve, watchedIds), { cache: "no-store" })).json() as Promise<RadarPayload>,
+    queryFn: async () => {
+      const res = await fetch(radarApiPath(ageGate, curve, watchedIds), { cache: "no-store" });
+      if (!res.ok) return null;
+      return (await res.json()) as RadarPayload;
+    },
+    enabled: signedIn,
     refetchInterval: 20_000,
   });
-  const sources = data?.health.sources || [];
+  const sources = data?.health?.sources ?? [];
   const pump = findSrc(sources, "pumpfun") || findSrc(sources, "DexScreener");
   const catalog = findSrc(sources, "graduated catalog") || findSrc(sources, "pons catalog");
   // Factory line is V1+V2+o1 factory only. Catalog success must not claim factory is on.
@@ -61,7 +66,7 @@ export function HealthFooter() {
         <span>
           {bit("Dex pumpfun", pump)} · {bit("pons catalog", catalog)} · {factoryLine} · {tgLine} · last success {ago(data?.lastSuccessAt)}
         </span>
-        <span className="text-[10px]">{data?.stale ? "STALE" : "live"} · {data?.tokens.length ?? 0} rows · {hiddenN} hidden under {hiddenLabel}</span>
+        <span className="text-[10px]">{data?.stale ? "STALE" : "live"} · {(data?.tokens ?? []).length} rows · {hiddenN} hidden under {hiddenLabel}</span>
       </div>
     </footer>
   );

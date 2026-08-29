@@ -30,18 +30,18 @@ export function telegramHealth(): HealthSource {
   };
 }
 
-export function attachTelegramHealth(health: {
-  sources: HealthSource[];
-  hits: number;
-  attempts: number;
-}): { sources: HealthSource[]; hits: number; attempts: number } {
+export function attachTelegramHealth(health?: {
+  sources?: HealthSource[];
+  hits?: number;
+  attempts?: number;
+} | null): { sources: HealthSource[]; hits: number; attempts: number } {
   const tg = telegramHealth();
-  const sources = health.sources.filter((s) => s.name.toLowerCase() !== "telegram");
+  const sources = (health?.sources ?? []).filter((s) => (s.name || "").toLowerCase() !== "telegram");
   sources.push(tg);
   return {
     sources,
-    hits: health.hits + tg.hits,
-    attempts: health.attempts + tg.attempts,
+    hits: (health?.hits ?? 0) + tg.hits,
+    attempts: (health?.attempts ?? 0) + tg.attempts,
   };
 }
 
