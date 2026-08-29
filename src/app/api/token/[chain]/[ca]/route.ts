@@ -9,7 +9,7 @@ type Ctx = { params: Promise<{ chain: string; ca: string }> };
 export async function GET(_req: Request, ctx: Ctx) {
   const { chain, ca: raw } = await ctx.params;
   const ca = decodeURIComponent(raw || "").trim();
-  if (!isChain(chain) || chain === "unknown") {
+  if (!isChain(chain)) {
     return NextResponse.json({ ok: false }, { status: 404 });
   }
   const valid = chain === "solana" ? isSolMint(ca) : isEvmCa(ca);
