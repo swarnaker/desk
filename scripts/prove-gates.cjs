@@ -259,6 +259,32 @@ const draft = formatProposeDraft(gtaLike);
 ok(draft.startsWith("PayBox Always Ask"), "draft title PayBox Always Ask");
 ok(draft.includes("Buy $8 of GTAAPE"), "draft sizes $8");
 ok(draft.includes("https://desk-jxwk.vercel.app/t/solana/"), "draft desk URL");
+ok(draft.includes("buyers1h=na"), "draft buyers missing is na");
+ok(draft.includes("top10=na"), "draft top10 missing is na");
+ok(!draft.includes("trycloudflare"), "draft never uses trycloudflare");
+
+const ponsLike = row({
+  symbol: "PONS",
+  ca: "0x39dBED3a2bd333467115dE45665cC57F813C4571",
+  pad: "PONS",
+  stage: "GRADUATED",
+  ageSec: 40 * HOUR,
+  vol1hUsd: 12000,
+  uniqueBuyers1h: null,
+  chain: "robinhood",
+});
+ok(canPropose(ponsLike).ok, "$PONS with vol >= 8k proposes even if buyers missing");
+const deadRow = row({
+  symbol: "DEAD",
+  ca: "Dead111111111111111111111111111111111111111",
+  pad: "PONS",
+  stage: "GRADUATED",
+  ageSec: 40 * HOUR,
+  vol1hUsd: 200,
+  uniqueBuyers1h: null,
+  chain: "robinhood",
+});
+ok(!canPropose(deadRow).ok, "dead row missing buyers and vol < 8k cannot propose");
 
 const onCurveNo = row({
   symbol: "CURVEPRO",
@@ -350,6 +376,7 @@ ok(isEarlyPons(earlyBuyers), "2h Pons 25 buyers $2k/h isEarlyPons");
 ok(applyFilters([earlyBuyers], { ...DEFAULT_FILTERS, early: true }, new Set()).some((r) => r.symbol === "EARLYB"), "EARLY keeps 20+ buyers even under $5k/h");
 
 const laneSrc = fs.readFileSync(path.join(__dirname, "..", "src", "components", "Lane.tsx"), "utf8");
+ok(laneSrc.includes("top10Known") || laneSrc.includes("top10Pct"), "radar RISK uses top10 when known");
 ok(laneSrc.includes("<CopyCa ca={row.ca}"), "Lane CA cell uses CopyCa");
 ok(laneSrc.includes("<a href={href}") && laneSrc.includes("{row.symbol}</a>"), "token NAME keeps <a href> to desk");
 ok(!/href=\{href\}[^]*CopyCa/.test(laneSrc.split("row.symbol")[0].slice(-200) + "no"), "sanity");
@@ -376,14 +403,15 @@ ok(copyLib.includes("execCommand(") && copyLib.includes("'copy'") || copyLib.inc
 
 const deskSrc = fs.readFileSync(path.join(__dirname, "..", "src", "components", "TokenDesk.tsx"), "utf8");
 ok(deskSrc.includes("<CopyCa ca={t.ca}"), "desk CA uses CopyCa");
-ok(deskSrc.includes("PROPOSE $8"), "desk has PROPOSE $8");
+ok(deskSrc.includes("LINE_PROPOSE_LABEL") || deskSrc.includes("PROPOSE $8"), "desk has PROPOSE $8");
 ok(deskSrc.includes("PAYBOX DRAFT"), "desk shows PAYBOX DRAFT panel");
+ok(!deskSrc.includes("window.open"), "desk does not open PayBox");
 ok(!/Connect Wallet|wagmi|useConnect/i.test(deskSrc), "desk has no Connect Wallet");
 
 const barSrc = fs.readFileSync(path.join(__dirname, "..", "src", "components", "FilterBar.tsx"), "utf8");
-ok(barSrc.includes('"6h"') && barSrc.includes('"1h"') && barSrc.includes('"2h"') && barSrc.includes("any age"), "chips 1h | 2h | 6h | any age");
+ok(barSrc.includes('"1h"') && barSrc.includes('"6h"') && barSrc.includes('label: "any"') && !barSrc.includes('label: "2h"'), "chips 1h | 6h | any, no 2h");
 ok(barSrc.includes(">EARLY<") || barSrc.includes("EARLY"), "EARLY chip after WAKE");
-ok(barSrc.includes("wakeOnly") && barSrc.indexOf("WAKE") < barSrc.indexOf("EARLY"), "EARLY chip is after WAKE");
+ok(barSrc.includes(">WAKE<") && barSrc.indexOf(">WAKE<") < barSrc.indexOf("id=\"line-early\""), "EARLY chip is after WAKE");
 
 const apiSrc = fs.readFileSync(path.join(__dirname, "..", "src", "app", "api", "radar", "route.ts"), "utf8");
 ok(apiSrc.includes("parseAgeGateParam"), "GET /api/radar uses parseAgeGateParam (default 6h)");

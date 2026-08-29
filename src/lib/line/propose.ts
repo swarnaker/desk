@@ -58,16 +58,20 @@ export function canPropose(row: TokenRow | null | undefined): { ok: boolean; rea
   if (row.ageSec == null || !Number.isFinite(row.ageSec) || row.ageSec < PROPOSE_MIN_AGE_SEC) {
     return { ok: false, reason: "age" };
   }
-  const buyersOk = row.uniqueBuyers1h != null && row.uniqueBuyers1h >= PROPOSE_MIN_BUYERS;
-  const volOk = (row.vol1hUsd ?? 0) >= PROPOSE_MIN_VOL1H;
-  if (!buyersOk && !volOk) return { ok: false, reason: "activity" };
+  const buyersMissing = row.uniqueBuyers1h == null;
+  const volLow = (row.vol1hUsd ?? 0) < PROPOSE_MIN_VOL1H;
+  if (buyersMissing && volLow) return { ok: false, reason: "activity" };
   if (row.risk?.level === "RED") return { ok: false, reason: "risk" };
   if (FAKE_MAJOR_TICKERS.has(tickerKey(row.symbol))) return { ok: false, reason: "ticker" };
   return { ok: true };
 }
 
+function draftNum(v: number | null | undefined, asPct = false): string {
+  if (v == null || !Number.isFinite(v)) return "na";
+  return asPct ? Math.round(v) + "%" : String(v);
+}
+
 export function formatProposeDraft(row: TokenRow): string {
-  const buyers = row.uniqueBuyers1h != null ? String(row.uniqueBuyers1h) : EM;
   return [
     "PayBox Always Ask",
     "Buy $" + PROPOSE_USD + " of " + (row.symbol || EM),
@@ -76,9 +80,9 @@ export function formatProposeDraft(row: TokenRow): string {
     "pad=" + row.pad
       + " age=" + formatAge(row.ageSec)
       + " vol1h=" + formatUsd(row.vol1hUsd)
-      + " buyers1h=" + buyers
+      + " buyers1h=" + draftNum(row.uniqueBuyers1h)
       + " mcap=" + formatUsd(row.mcapUsd)
-      + " top10=" + formatPct(row.top10Pct),
+      + " top10=" + draftNum(row.top10Pct, true),
     deskUrl(row),
   ].join("\n");
 }

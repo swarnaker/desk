@@ -12,9 +12,10 @@ function riskColor(label: string) {
 }
 
 function riskLabel(row: TokenRow): string {
+  const top10Known = row.top10Pct != null && Number.isFinite(row.top10Pct);
   if (row.risk.level === "RED") return "RED";
   if (row.risk.level === "GREEN") return "GREEN";
-  if (row.risk.flags.some((f) => f.toUpperCase() === "UNK")) return "UNK";
+  if (!top10Known && row.risk.flags.some((f) => f.toUpperCase() === "UNK")) return "UNK";
   return "AMBER";
 }
 

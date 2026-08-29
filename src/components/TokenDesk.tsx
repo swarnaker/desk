@@ -204,17 +204,6 @@ function ProposeDraft({ row }: { row: TokenRow }) {
           recordPropose(row.chain, row.ca);
           setCooled(true);
           setDraft(text);
-          void fetch("/api/propose?chain=" + encodeURIComponent(row.chain) + "&ca=" + encodeURIComponent(row.ca), { cache: "no-store" })
-            .then(async (res) => {
-              try {
-                const json = (await res.json()) as { intentUrl?: string | null };
-                if (typeof json.intentUrl === "string" && json.intentUrl) {
-                  window.open(json.intentUrl, "_blank", "noopener,noreferrer");
-                }
-              } catch {
-                /* draft already copied */
-              }
-            });
         }}
       >
         {LINE_PROPOSE_LABEL}
