@@ -65,7 +65,7 @@ async function sha256(data: string): Promise<Uint8Array> {
   return new Uint8Array(buf);
 }
 
-/** Server secret derived from ADMIN_PASSWORD. No extra user-facing env. */
+/** HMAC key derived server-side from the admin password env. No extra user-facing env. */
 async function sessionKey(): Promise<Uint8Array | null> {
   const pass = process.env.ADMIN_PASSWORD;
   if (!pass) return null;
