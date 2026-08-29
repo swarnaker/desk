@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import type { RadarPayload } from "@/lib/line/types";
+import { isSurvived } from "@/lib/line/lane";
+import { PONS_MCAP_BOOK_USD, type RadarPayload } from "@/lib/line/types";
 import { useWatch } from "@/hooks/useWatch";
 import { useRunnerAlerts } from "@/hooks/useRunnerAlerts";
 
@@ -38,8 +39,8 @@ export function Header({ signedIn = false }: { signedIn?: boolean }) {
   const watch = useWatch();
   useRunnerAlerts(data ?? undefined, watch.ids, watch.file.items.length);
   const tokens = data?.tokens || [];
-  const pons = tokens.filter((t) => t.pad === "PONS").length;
-  const o1 = tokens.filter((t) => t.pad === "O1").length;
+  const pons = tokens.filter((t) => t.pad === "PONS" && isSurvived(t) && (t.mcapUsd ?? 0) >= PONS_MCAP_BOOK_USD).length;
+  const o1 = tokens.filter((t) => t.pad === "O1" && isSurvived(t) && (t.mcapUsd ?? 0) >= PONS_MCAP_BOOK_USD).length;
   const live = data && !data.stale;
   const copiesHidden = data?.banners?.sameNameCopiesHidden ?? 0;
 

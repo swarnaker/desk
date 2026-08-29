@@ -1,4 +1,4 @@
-import { DAY, HOUR, STRETCH_FILL, WAKE_UNIQUE_BUYERS_MIN, type Lane, type Pad, type Stage, type TokenRow } from "./types";
+import { DAY, HOUR, STRETCH_FILL, TAPE_PRINT_BUYERS, TAPE_PRINT_VOL1H, WAKE_UNIQUE_BUYERS_MIN, type Lane, type Pad, type Stage, type TokenRow } from "./types";
 
 /** PONS/PUMP still on the bonding curve. o1 is never on-curve. */
 export function isOnCurve(row: { pad: Pad; stage: Stage }): boolean {
@@ -129,9 +129,19 @@ export function computeWake(row: {
   return true;
 }
 
-/** Movers first, then heat desc. RED cannot outrank a green mover. */
+/** Tape print: vol1hUsd >= 3k OR uniqueBuyers1h >= 10. Missing buyers is not a print. */
+export function isTapePrint(row: TokenRow): boolean {
+  if ((row.vol1hUsd ?? 0) >= TAPE_PRINT_VOL1H) return true;
+  if (row.uniqueBuyers1h != null && row.uniqueBuyers1h >= TAPE_PRINT_BUYERS) return true;
+  return false;
+}
+
+/** Tape printers first, then movers / RED, then heat desc, then vol1hUsd desc. */
 export function sortLane(rows: TokenRow[]): TokenRow[] {
   return [...rows].sort((a, b) => {
+    const aPrint = isTapePrint(a) ? 1 : 0;
+    const bPrint = isTapePrint(b) ? 1 : 0;
+    if (aPrint !== bPrint) return bPrint - aPrint;
     const aGreenMover = a.moving && a.risk.level === "GREEN" ? 1 : 0;
     const bGreenMover = b.moving && b.risk.level === "GREEN" ? 1 : 0;
     if (aGreenMover !== bGreenMover) return bGreenMover - aGreenMover;
@@ -142,6 +152,8 @@ export function sortLane(rows: TokenRow[]): TokenRow[] {
     const bm = b.moving ? 1 : 0;
     if (am !== bm) return bm - am;
     if (a.heat !== b.heat) return b.heat - a.heat;
+    const vol = (b.vol1hUsd ?? 0) - (a.vol1hUsd ?? 0);
+    if (vol !== 0) return vol;
     return (b.firstSeenAt || "").localeCompare(a.firstSeenAt || "");
   });
 }

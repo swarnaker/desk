@@ -55,18 +55,23 @@ function watched(row: TokenRow, watchSet: Set<string>): boolean {
   return watchSet.has(ca) || watchSet.has(row.id.toLowerCase());
 }
 
-/** Graduated Pons $1M+ book that already passed age + bonding. No activity required. */
+/** Quiet graduated/LIVE Pons or O1 book, mcap >= $30k. Own 1h age floor — not the 6h default gate. */
 export function isPonsMcapBook(row: TokenRow, f: Filters, watchSet: Set<string> = new Set()): boolean {
-  if (row.pad !== "PONS") return false;
+  void f;
+  if (row.pad !== "PONS" && row.pad !== "O1") return false;
   if (!isSurvived(row)) return false;
   if (isOnCurve(row)) return false;
   if ((row.mcapUsd ?? 0) < PONS_MCAP_BOOK_USD) return false;
-  return passesAgeGate(row, f, watchSet);
+  if (watched(row, watchSet)) return true;
+  // Missing age only if survived locked major (BOOK) — same as passesAgeGate.
+  if (row.ageSec == null) return row.lane === "BOOK" && isSurvived(row);
+  if (row.ageSec < HOUR) return false;
+  return true;
 }
 
-/** Pons-chip extra: $1M book that would be hidden by activity or BOOK 0-vol. */
+/** PONS/BOTH/ALL extra: $30k book that would be hidden by activity or BOOK 0-vol. */
 export function isPonsMcapExtra(row: TokenRow, f: Filters, watchSet: Set<string> = new Set()): boolean {
-  if (f.pad !== "PONS") return false;
+  if (f.pad !== "PONS" && f.pad !== "BOTH" && f.pad !== "ALL") return false;
   if (!isPonsMcapBook(row, f, watchSet)) return false;
   if (!passesActivityGate(row, watchSet)) return true;
   if (row.lane === "BOOK" && !((row.vol1hUsd ?? 0) > 0) && !watched(row, watchSet)) return true;
@@ -145,16 +150,17 @@ export function isBoostedHidden(row: TokenRow): boolean {
 function matchRow(row: TokenRow, f: Filters, watchSet: Set<string>): boolean {
   if (f.early) {
     if (!isEarlyPons(row)) return false;
-  } else if (!passesAgeGate(row, f, watchSet)) {
+  } else if (!passesAgeGate(row, f, watchSet) && !isPonsMcapBook(row, f, watchSet)) {
     return false;
   }
   if (!passesBondingGate(row, f)) return false;
   // EARLY already required buyers>=20 or $5k/h. Do not also demand the $5k All-board gate.
-  if (!f.early && !passesActivityGate(row, watchSet) && !(f.pad === "PONS" && isPonsMcapBook(row, f, watchSet))) return false;
+  // $30k+ survived Pons/O1 books bypass activity on Both (and Pons/O1 chips).
+  if (!f.early && !passesActivityGate(row, watchSet) && !isPonsMcapBook(row, f, watchSet)) return false;
   if (isBoostedHidden(row) && !watched(row, watchSet)) return false;
   // BOOK: hide 0 / missing 1h vol unless watched. NEW/STRETCH unchanged.
-  // Pons chip: keep quiet $1M+ graduated books (isPonsMcapBook).
-  if (!f.early && row.lane === "BOOK" && !((row.vol1hUsd ?? 0) > 0) && !watched(row, watchSet) && !(f.pad === "PONS" && isPonsMcapBook(row, f, watchSet))) return false;
+  // Quiet $30k+ Pons/O1 books stay on Both (isPonsMcapBook).
+  if (!f.early && row.lane === "BOOK" && !((row.vol1hUsd ?? 0) > 0) && !watched(row, watchSet) && !isPonsMcapBook(row, f, watchSet)) return false;
   if (!padMatches(row, f.pad)) return false;
   if (f.liqMin && (row.liqUsd ?? 0) < f.liqMin) return false;
   if (f.mcapMin && (row.mcapUsd ?? 0) < f.mcapMin) return false;

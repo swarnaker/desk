@@ -36,9 +36,9 @@ function loadTs(rel) {
   return m.exports;
 }
 
-const { DEFAULT_FILTERS, applyFilters, minAgeSec, passesActivityGate, isEarlyPons } = loadTs("filters.ts");
-const { inferLane, computeBirth, computeWake } = loadTs("lane.ts");
-const { HOUR, DAY, ACTIVITY_VOL1H_USD, ACTIVITY_TX_1H } = loadTs("types.ts");
+const { DEFAULT_FILTERS, applyFilters, minAgeSec, passesActivityGate, isEarlyPons, isPonsMcapBook } = loadTs("filters.ts");
+const { inferLane, computeBirth, computeWake, sortLane, isTapePrint } = loadTs("lane.ts");
+const { HOUR, DAY, ACTIVITY_VOL1H_USD, ACTIVITY_TX_1H, PONS_MCAP_BOOK_USD, TAPE_PRINT_VOL1H, TAPE_PRINT_BUYERS } = loadTs("types.ts");
 const { COPIED_HINT_MS } = loadTs("copyCa.ts");
 const { parseAgeGateParam, hiddenUnderLabel, parsePadParam, radarApiPath } = loadTs("radarPath.ts");
 const { canPropose, formatProposeDraft, FAKE_MAJOR_TICKERS, PROPOSE_USD } = loadTs("propose.ts");
@@ -106,8 +106,8 @@ ok(hiddenUnderLabel("6h") === "6h", "footer label 6h");
 ok(ACTIVITY_VOL1H_USD === 5000, "activity 5k vol1h");
 ok(COPIED_HINT_MS === 1000, "copied hint timeout 1000ms");
 
-const ron1h = row({ symbol: "RON", ageSec: HOUR, vol1hUsd: 20000, stage: "GRADUATED" });
-const as1h = row({ symbol: "ASSE", ca: "Asse111111111111111111111111111111111111111", ageSec: 4000, vol1hUsd: 8000, stage: "GRADUATED" });
+const ron1h = row({ symbol: "RON", ageSec: HOUR, vol1hUsd: 20000, stage: "GRADUATED", mcapUsd: 20000 });
+const as1h = row({ symbol: "ASSE", ca: "Asse111111111111111111111111111111111111111", ageSec: 4000, vol1hUsd: 8000, stage: "GRADUATED", mcapUsd: 20000 });
 const sevenH = row({
   symbol: "SEVEN",
   ca: "Seven11111111111111111111111111111111111111",
@@ -123,6 +123,7 @@ const quiet7h = row({
   buys: 2,
   sells: 3,
   stage: "GRADUATED",
+  mcapUsd: 20000,
 });
 const tx7h = row({
   symbol: "TXS",
@@ -132,6 +133,7 @@ const tx7h = row({
   buys: 12,
   sells: 8,
   stage: "GRADUATED",
+  mcapUsd: 20000,
 });
 const book25h = row({
   symbol: "OLD",
@@ -245,7 +247,7 @@ const ponsChip = applyFilters([quietPonsMcap], { ...DEFAULT_FILTERS, pad: "PONS"
 const allChip = applyFilters([quietPonsMcap], DEFAULT_FILTERS, new Set());
 const o1Chip = applyFilters([quietPonsMcap], { ...DEFAULT_FILTERS, pad: "O1" }, new Set());
 ok(ponsChip.some((r) => r.symbol === "QUIETPONS"), "pad PONS keeps quiet graduated Pons $3M");
-ok(!allChip.some((r) => r.symbol === "QUIETPONS"), "Both/default drops quiet graduated Pons $3M");
+ok(allChip.some((r) => r.symbol === "QUIETPONS"), "Both now keeps quiet graduated Pons $3M ($30k floor)");
 ok(!o1Chip.some((r) => r.symbol === "QUIETPONS"), "pad O1 drops quiet graduated Pons $3M");
 
 const pumpRow = row({
@@ -262,6 +264,131 @@ ok(
   applyFilters([pumpRow], DEFAULT_FILTERS, new Set([pumpRow.ca.toLowerCase()])).length === 0,
   "watched Pump still hidden on Both",
 );
+
+ok(PONS_MCAP_BOOK_USD === 30000, "PONS_MCAP_BOOK_USD === 30000");
+ok(TAPE_PRINT_VOL1H === 3000 && TAPE_PRINT_BUYERS === 10, "tape print floors 3000 vol / 10 buyers");
+
+const quiet30k2h = row({
+  symbol: "Q30_2H",
+  ca: "Quiet30k2h111111111111111111111111111111111",
+  pad: "PONS",
+  stage: "GRADUATED",
+  ageSec: 2 * HOUR,
+  vol1hUsd: 0,
+  buys: 0,
+  sells: 0,
+  mcapUsd: 30000,
+  lane: "NEW",
+  chain: "robinhood",
+});
+const quiet30k30h = row({
+  symbol: "Q30_30H",
+  ca: "Quiet30k30h11111111111111111111111111111111",
+  pad: "PONS",
+  stage: "GRADUATED",
+  ageSec: 30 * HOUR,
+  vol1hUsd: 0,
+  buys: 0,
+  sells: 0,
+  mcapUsd: 30000,
+  lane: "BOOK",
+  chain: "robinhood",
+});
+const quietO1 = row({
+  symbol: "QO1",
+  ca: "QuietO1Live11111111111111111111111111111111",
+  pad: "O1",
+  stage: "LIVE_POOL",
+  ageSec: 30 * HOUR,
+  vol1hUsd: 0,
+  buys: 0,
+  sells: 0,
+  mcapUsd: 30000,
+  lane: "BOOK",
+  chain: "base",
+});
+const quiet20k = row({
+  symbol: "Q20",
+  ca: "Quiet20kPons1111111111111111111111111111111",
+  pad: "PONS",
+  stage: "GRADUATED",
+  ageSec: 30 * HOUR,
+  vol1hUsd: 0,
+  mcapUsd: 20000,
+  lane: "BOOK",
+  chain: "robinhood",
+});
+const curve50k = row({
+  symbol: "CURVE50",
+  ca: "Curve50k11111111111111111111111111111111111",
+  pad: "PONS",
+  stage: "ON_CURVE",
+  ageSec: 8 * HOUR,
+  vol1hUsd: 0,
+  mcapUsd: 50000,
+  curveFillPct: 0.9,
+  chain: "robinhood",
+});
+const young50k = row({
+  symbol: "YOUNG50",
+  ca: "Young50k30m11111111111111111111111111111111",
+  pad: "PONS",
+  stage: "GRADUATED",
+  ageSec: 30 * 60,
+  vol1hUsd: 0,
+  mcapUsd: 50000,
+  lane: "NEW",
+  chain: "robinhood",
+});
+const def30 = applyFilters([quiet30k2h, quiet30k30h, quietO1, quiet20k, curve50k, young50k, pumpRow], DEFAULT_FILTERS, new Set());
+const def30ids = def30.map((r) => r.symbol);
+ok(def30ids.includes("Q30_2H"), "DEFAULT/Both keeps quiet Pons $30k GRAD age 2h vol 0");
+ok(def30ids.includes("Q30_30H"), "DEFAULT/Both keeps quiet Pons $30k GRAD age 30h vol 0");
+ok(def30ids.includes("QO1"), "DEFAULT/Both keeps quiet O1 $30k LIVE_POOL");
+ok(!def30ids.includes("Q20"), "quiet $20k Pons GRAD still hidden on default");
+ok(!def30ids.includes("CURVE50"), "ON_CURVE still hidden when Curve off even if mcap $50k");
+ok(!def30ids.includes("YOUNG50"), "age 30m $50k Pons hidden on default unless watched");
+ok(!def30ids.includes("PUMPROW"), "Pump still hidden on Both");
+ok(
+  applyFilters([young50k], DEFAULT_FILTERS, new Set([young50k.ca.toLowerCase()])).some((r) => r.symbol === "YOUNG50"),
+  "age 30m $50k Pons shows when watched",
+);
+ok(isPonsMcapBook(quiet30k2h, DEFAULT_FILTERS), "isPonsMcapBook true for 2h $30k Pons");
+ok(isPonsMcapBook(quietO1, DEFAULT_FILTERS), "isPonsMcapBook true for O1 $30k LIVE");
+ok(!isPonsMcapBook(quiet20k, DEFAULT_FILTERS), "isPonsMcapBook false under $30k");
+ok(!isPonsMcapBook(curve50k, DEFAULT_FILTERS), "isPonsMcapBook false for ON_CURVE");
+
+const printerVol = row({
+  symbol: "PRINTV",
+  ca: "PrintVol40001111111111111111111111111111111",
+  pad: "PONS",
+  stage: "GRADUATED",
+  ageSec: 8 * HOUR,
+  vol1hUsd: 4000,
+  mcapUsd: 12000,
+  lane: "NEW",
+  chain: "robinhood",
+});
+const printerBuy = row({
+  symbol: "PRINTB",
+  ca: "PrintBuy12111111111111111111111111111111111",
+  pad: "PONS",
+  stage: "GRADUATED",
+  ageSec: 8 * HOUR,
+  vol1hUsd: 0,
+  uniqueBuyers1h: 12,
+  mcapUsd: 12000,
+  lane: "NEW",
+  chain: "robinhood",
+});
+ok(isTapePrint(printerVol), "vol1h=4000 is tape print");
+ok(isTapePrint(printerBuy), "uniqueBuyers1h=12 is tape print");
+ok(!isTapePrint(quiet30k30h), "quiet $30k book is not tape print");
+ok(!isTapePrint(row({ symbol: "NOPRINT", ca: "NoPrint11111111111111111111111111111111111", vol1hUsd: 0 })), "missing buyers is not a print");
+const sortedVol = sortLane([quiet30k30h, printerVol]);
+ok(sortedVol[0].symbol === "PRINTV", "vol1h=4000 sorts above quiet $30k book");
+const sortedBuy = sortLane([quiet30k30h, printerBuy]);
+ok(sortedBuy[0].symbol === "PRINTB", "buyers=12 sorts above quiet $30k book");
 
 ok(DEFAULT_FILTERS.early === false, "EARLY chip off by default");
 ok(PROPOSE_USD === 8, "PROPOSE_USD is 8");
@@ -381,6 +508,7 @@ const early2h = row({
   ageSec: 2 * HOUR,
   uniqueBuyers1h: 25,
   vol1hUsd: 8000,
+  mcapUsd: 20000,
   chain: "robinhood",
 });
 const early20h = row({
@@ -407,6 +535,7 @@ const earlyBuyers = row({
   ageSec: 2 * HOUR,
   uniqueBuyers1h: 25,
   vol1hUsd: 2000,
+  mcapUsd: 20000,
   chain: "robinhood",
 });
 ok(isEarlyPons(earlyBuyers), "2h Pons 25 buyers $2k/h isEarlyPons");
@@ -470,6 +599,19 @@ ok(barSrc.includes(">WAKE<") && barSrc.indexOf(">WAKE<") < barSrc.indexOf("id=\"
 const headerSrc = fs.readFileSync(path.join(__dirname, "..", "src", "components", "Header.tsx"), "utf8");
 ok(headerSrc.includes("Pons {pons}") && headerSrc.includes("O1 {o1}"), "Header source includes Pons and O1 counts");
 ok(!headerSrc.includes("{pump}") && !headerSrc.includes("Pump {"), "Header has no Pump count lead");
+ok(
+  headerSrc.includes("PONS_MCAP_BOOK_USD") || headerSrc.includes("30_000") || headerSrc.includes("30000"),
+  "Header source counts mcap >= 30_000 / PONS_MCAP_BOOK_USD",
+);
+ok(headerSrc.includes("isSurvived"), "Header counts survived graduates only");
+
+const radarSrc = fs.readFileSync(path.join(__dirname, "..", "src", "lib", "server", "radar.ts"), "utf8");
+ok(radarSrc.includes("fetchTokensV1") || radarSrc.includes("fetchTokensV1Batched"), "radar hydrates official missing pair by token CA");
+ok(/0x0\+/.test(radarSrc), "radar treats 0x0 pairAddress as no pair");
+ok(radarSrc.includes("pri") && (radarSrc.includes("noPair") || radarSrc.includes("2")), "radar prioritizes official no-pair Dex fill");
+
+const classifySrc = fs.readFileSync(path.join(__dirname, "..", "src", "lib", "server", "classify.ts"), "utf8");
+ok(/hasDex[\s\S]{0,120}0x0\+/.test(classifySrc) || (classifySrc.includes("hasDex") && /0x0\+/.test(classifySrc)), "classify/radar treat 0x0 pairAddress as no pair");
 
 const apiSrc = fs.readFileSync(path.join(__dirname, "..", "src", "app", "api", "radar", "route.ts"), "utf8");
 ok(apiSrc.includes("parseAgeGateParam"), "GET /api/radar uses parseAgeGateParam (default 6h)");

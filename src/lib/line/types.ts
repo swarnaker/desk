@@ -197,8 +197,11 @@ export const DAY = 24 * HOUR;
 /** Default activity gate: unwatched vol1hUsd >= 5k. Watched bypass. */
 export const ACTIVITY_VOL1H_USD = 5000;
 export const ACTIVITY_TX_1H = 20;
-/** Quiet graduated Pons books: mcapUsd >= $1M, Pons chip only. */
-export const PONS_MCAP_BOOK_USD = 1_000_000;
+/** Quiet graduated/LIVE Pons or O1 books, mcap >= $30k. */
+export const PONS_MCAP_BOOK_USD = 30_000;
+/** Tape print: vol1hUsd >= 3k OR uniqueBuyers1h >= 10. Missing buyers is not a print. */
+export const TAPE_PRINT_VOL1H = 3000;
+export const TAPE_PRINT_BUYERS = 10;
 export const PONS_TAX_SEC = 5;
 export const O1_TAX_SEC = 16;
 export const STRETCH_FILL = 0.7;

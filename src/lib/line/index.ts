@@ -4,12 +4,12 @@ export type {
   Stage, StageInput, TapeEvent, TokenClone, TokenLinks, TokenRisk, TokenRow,
 } from "./types";
 export {
-  DESK_PADS, FIRST_WINDOW_SEC, HOUR, DAY, ACTIVITY_VOL1H_USD, ACTIVITY_TX_1H, PONS_MCAP_BOOK_USD, O1_TAX_SEC, PONS_TAX_SEC, PONS_CURVE_ETH,
+  DESK_PADS, FIRST_WINDOW_SEC, HOUR, DAY, ACTIVITY_VOL1H_USD, ACTIVITY_TX_1H, PONS_MCAP_BOOK_USD, TAPE_PRINT_VOL1H, TAPE_PRINT_BUYERS, O1_TAX_SEC, PONS_TAX_SEC, PONS_CURVE_ETH,
   PUMP_GRAD_MCAP, STRETCH_FILL, THIN_LP_USD, EXTREME_THIN_LP_USD, MARKET_THIN_LP_USD,
   WAKE_UNIQUE_BUYERS_MIN, BOOSTED_HIDE_UNIQUE_BUYERS, SERIAL_LAUNCHES_7D, SERIAL_MCAP_USD, WEEK_SEC,
 } from "./types";
 export { inferStage, curveFillAllowed } from "./stage";
-export { inferLane, isOnCurve, isSurvived, isStretchException, sortLane, splitLanes, computeBirth, computeWake } from "./lane";
+export { inferLane, isOnCurve, isSurvived, isStretchException, sortLane, splitLanes, computeBirth, computeWake, isTapePrint } from "./lane";
 export { heatScore, isMoving } from "./heat";
 export { applyFilters, DEFAULT_FILTERS, padMatches, passesAgeGate, passesBondingGate, passesActivityGate, isBoostedHidden, isPonsMcapBook, isPonsMcapExtra, isEarlyPons, rowIsStretch, minAgeSec, tx1h } from "./filters";
 export { riskFromFlags, isHiddenRisky } from "./risk";

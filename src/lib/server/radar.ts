@@ -42,6 +42,13 @@ function persistSnapshot(data: RadarPayload) {
   } catch { /* disk */ }
 }
 
+
+/** 0x0 / 0x000… pairAddress is not a Dex pair. */
+function isRealDexPair(pair?: DexPair | null): boolean {
+  const addr = pair?.pairAddress;
+  return !!addr && !/^0x0+$/i.test(addr);
+}
+
 function addPair(map: Map<string, Cand>, pair: DexPair, source: string, searchQ?: string) {
   const chain = mapDexChain(pair.chainId);
   if (!chain) return;
@@ -56,16 +63,18 @@ function addPair(map: Map<string, Cand>, pair: DexPair, source: string, searchQ?
   const ex = map.get(key);
   if (ex) {
     ex.sources.add(source);
-    if (!ex.pair) ex.pair = pair;
-    else {
-      const a = ex.pair.liquidity?.usd ?? 0;
-      const b = pair.liquidity?.usd ?? 0;
-      if (b > a) ex.pair = pair;
+    if (isRealDexPair(pair)) {
+      if (!isRealDexPair(ex.pair)) ex.pair = pair;
+      else {
+        const a = ex.pair!.liquidity?.usd ?? 0;
+        const b = pair.liquidity?.usd ?? 0;
+        if (b > a) ex.pair = pair;
+      }
     }
     if (searchQ && !ex.searchQ) ex.searchQ = searchQ;
     return;
   }
-  map.set(key, { chain, ca: addr, sources: new Set([source]), searchQ, pair });
+  map.set(key, { chain, ca: addr, sources: new Set([source]), searchQ, pair: isRealDexPair(pair) ? pair : undefined });
 }
 
 function isOfficialPonsSources(sources: Iterable<string>): boolean {
@@ -197,8 +206,8 @@ function ponsBooksByMcapCount(
   gated: TokenRow[],
   gates: { ageGate: AgeGate; curve: boolean; watched: Set<string>; pad: Filters["pad"]; early: boolean },
 ): number {
-  if (gates.pad !== "PONS") return 0;
-  const f: Filters = { ...DEFAULT_FILTERS, ageGate: gates.ageGate, curve: gates.curve, pad: "PONS", early: gates.early };
+  if (gates.pad !== "PONS" && gates.pad !== "BOTH" && gates.pad !== "ALL") return 0;
+  const f: Filters = { ...DEFAULT_FILTERS, ageGate: gates.ageGate, curve: gates.curve, pad: gates.pad, early: gates.early };
   return gated.filter((t) => isPonsMcapExtra(t, f, gates.watched)).length;
 }
 
@@ -289,6 +298,7 @@ export async function listRadar(opts?: RadarListOpts): Promise<RadarPayload> {
   // Catalog stays in the ingest/snapshot. Do not Dex-hydrate the whole 300+ catalog
   // onto the default board (dust 1h vol would leak every graduate into BOOK).
   const DEX_ADDR_CAP = 60;
+  const DEX_NOPAIR_CAP = 150;
   const needDex: Record<"robinhood" | "base", { ca: string; mcap: number; pri: number }[]> = { robinhood: [], base: [] };
   for (const c of map.values()) {
     if (c.chain !== "robinhood" && c.chain !== "base") continue;
@@ -298,7 +308,10 @@ export async function listRadar(opts?: RadarListOpts): Promise<RadarPayload> {
     const young = ageSec != null && ageSec < 6 * HOUR;
     const o1 = isOfficialO1Sources(c.sources);
     const fac = [...c.sources].some((s) => s === "factory" || s.startsWith("pons:factory"));
-    needDex[c.chain].push({ ca: c.ca, mcap: c.factory?.mcapUsd ?? 0, pri: (o1 || fac || young) ? 1 : 0 });
+    // Official Pons/O1 without a real pair (incl. pool=0x0) get highest priority so V2 grads hydrate by token CA.
+    const noPair = !isRealDexPair(c.pair);
+    const pri = noPair ? 2 : ((o1 || fac || young) ? 1 : 0);
+    needDex[c.chain].push({ ca: c.ca, mcap: c.factory?.mcapUsd ?? 0, pri });
   }
   for (const chain of ["robinhood", "base"] as const) {
     const addrs = needDex[chain]
@@ -310,9 +323,25 @@ export async function listRadar(opts?: RadarListOpts): Promise<RadarPayload> {
     sources.push(health);
     for (const p of items) addPair(map, p, "dex:tokens", undefined);
   }
+  // Second pass: remaining official robinhood/base cands still missing a real pair. Hydrate by token CA.
+  for (const chain of ["robinhood", "base"] as const) {
+    const leftover: { ca: string; mcap: number }[] = [];
+    for (const c of map.values()) {
+      if (c.chain !== chain) continue;
+      const official = isOfficialPonsSources(c.sources) || isOfficialO1Sources(c.sources) || !!c.factory;
+      if (!official) continue;
+      if (isRealDexPair(c.pair)) continue;
+      leftover.push({ ca: c.ca, mcap: c.factory?.mcapUsd ?? 0 });
+    }
+    const addrs = leftover.sort((a, b) => b.mcap - a.mcap).slice(0, DEX_NOPAIR_CAP).map((x) => x.ca);
+    if (!addrs.length) continue;
+    const { items, health } = await fetchTokensV1Batched(chain, addrs, 30, 4);
+    sources.push(health);
+    for (const p of items) addPair(map, p, "dex:tokens", undefined);
+  }
 
   const geckoDexNames = new Set(
-    [...map.values()].filter((c) => c.pair).map((c) => (c.pair?.baseToken?.name || "").toLowerCase()),
+    [...map.values()].filter((c) => isRealDexPair(c.pair)).map((c) => (c.pair?.baseToken?.name || "").toLowerCase()),
   );
   const gecko = await fetchGeckoBaseNew();
   sources.push(gecko.health);

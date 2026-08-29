@@ -26,7 +26,7 @@ export function RadarBoard() {
     [tokens, filters, watch.ids],
   );
   const { lanes, extras, tableRows } = useMemo(() => {
-    if (filters.pad === "PONS") {
+    if (filters.pad === "PONS" || filters.pad === "BOTH" || filters.pad === "ALL") {
       const extras = filtered.filter((r) => isPonsMcapExtra(r, filters, watch.ids));
       const extraIds = new Set(extras.map((r) => r.id));
       const movers = filtered.filter((r) => !extraIds.has(r.id));
@@ -55,7 +55,7 @@ export function RadarBoard() {
           {b.factoryBeforeDex > 0 ? <div>{b.factoryBeforeDex} factory launches shown before Dex indexed a pair.</div> : null}
           {b.mergedFromSnapshot > 0 ? <div>Merged {b.mergedFromSnapshot} Pons/O1/Base rows from previous snapshot.</div> : null}
           <div>{hiddenN} hidden under {hiddenLabel}</div>
-          {filters.pad === "PONS" && ponsMcapN > 0 ? <div>{ponsMcapN} pons books included by mcap</div> : null}
+          {(filters.pad === "PONS" || filters.pad === "BOTH" || filters.pad === "ALL") && ponsMcapN > 0 ? <div>{ponsMcapN} pons books included by mcap</div> : null}
           {data?.stale && b.staleAgoSec != null ? <div>STALE · last success {b.staleAgoSec}s ago</div> : null}
         </div>
       ) : null}
