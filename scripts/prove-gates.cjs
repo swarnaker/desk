@@ -258,10 +258,11 @@ ok(canPropose(gtaLike).ok, "GTAAPE-like row enables propose");
 const draft = formatProposeDraft(gtaLike);
 ok(draft.startsWith("PayBox Always Ask"), "draft title PayBox Always Ask");
 ok(draft.includes("Buy $8 of GTAAPE"), "draft sizes $8");
-ok(draft.includes("https://desk-jxwk.vercel.app/t/solana/"), "draft desk URL");
+ok(draft.includes("https://www.linespace.space/t/solana/"), "draft desk URL");
 ok(draft.includes("buyers1h=na"), "draft buyers missing is na");
 ok(draft.includes("top10=na"), "draft top10 missing is na");
 ok(!draft.includes("trycloudflare"), "draft never uses trycloudflare");
+ok(!draft.includes("desk-jxwk.vercel.app") && !draft.includes("vercel.app"), "draft never uses vercel.app");
 
 const ponsLike = row({
   symbol: "PONS",

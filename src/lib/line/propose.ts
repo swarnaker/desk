@@ -20,7 +20,7 @@ export const PROPOSE_MIN_AGE_SEC = 3600;
 export const PROPOSE_MIN_BUYERS = 20;
 export const PROPOSE_MIN_VOL1H = 8000;
 
-export const DESK_PUBLIC_ORIGIN = "https://desk-jxwk.vercel.app";
+export const DESK_PUBLIC_ORIGIN = "https://www.linespace.space";
 
 function deskUrl(row: Pick<TokenRow, "chain" | "ca">): string {
   return DESK_PUBLIC_ORIGIN + "/t/" + row.chain + "/" + row.ca;
