@@ -5,23 +5,19 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const snap = getSnapshot();
-  if (snap) {
-    return NextResponse.json({
-      ok: !snap.stale,
-      stale: snap.stale,
-      lastSuccessAt: snap.lastSuccessAt,
-      fetchedAt: snap.fetchedAt,
-      tokens: snap.tokens.length,
-      health: snap.health,
-    });
-  }
-  const live = await listRadar();
+  const live = snap ?? (await listRadar());
+  const sources = (live.health?.sources || []).map((s) => ({
+    name: s.name,
+    ok: s.ok,
+    hits: s.hits,
+    attempts: s.attempts,
+    ms: s.ms,
+  }));
   return NextResponse.json({
     ok: !live.stale,
     stale: live.stale,
     lastSuccessAt: live.lastSuccessAt,
     fetchedAt: live.fetchedAt,
-    tokens: live.tokens.length,
-    health: live.health,
+    sources,
   });
 }

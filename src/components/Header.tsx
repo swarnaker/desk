@@ -20,7 +20,14 @@ function useRadar() {
   });
 }
 
-export function Header() {
+export function Header({ signedIn = false }: { signedIn?: boolean }) {
+  async function onLogout() {
+    try {
+      await fetch("/api/logout", { method: "POST" });
+    } catch { /* still leave */ }
+    window.location.href = "/login";
+  }
+
   const path = usePathname();
   const router = useRouter();
   const [q, setQ] = useState("");
@@ -118,6 +125,13 @@ export function Header() {
           {pons} Pons · {o1} O1 · Watch {watch.file.items.length}
           {copiesHidden > 0 ? <span className="ml-2">{copiesHidden} same-name copies hidden</span> : null}
         </div>
+        {signedIn ? (
+          <span className="font-mono text-xs tracking-[0.18em] text-mute">
+            ADMIN
+            <span className="mx-1">·</span>
+            <button type="button" onClick={() => void onLogout()} className="hover:text-ink">LOGOUT</button>
+          </span>
+        ) : null}
       </div>
       <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-2 px-3 pb-2">
         <div className="flex items-center gap-3">

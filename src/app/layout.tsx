@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { Header } from "@/components/Header";
 import { HealthFooter } from "@/components/HealthFooter";
+import { COOKIE_NAME, verifySession } from "@/lib/server/auth";
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -9,7 +11,9 @@ export const metadata: Metadata = {
   description: "Signal-only launchpad radar for Pons, o1, Base, and Pump.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const jar = await cookies();
+  const signedIn = await verifySession(jar.get(COOKIE_NAME)?.value);
   return (
     <html lang="en">
       <head>
@@ -18,7 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen bg-bg text-ink">
         <Providers>
-          <Header />
+          <Header signedIn={signedIn} />
           <main className="mx-auto max-w-[1600px] px-3 pb-16 pt-2">{children}</main>
           <HealthFooter />
         </Providers>
