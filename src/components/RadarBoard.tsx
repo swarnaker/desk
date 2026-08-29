@@ -16,8 +16,8 @@ export function RadarBoard() {
   const watch = useWatch();
   const watchedIds = watch.file.items.map((i) => i.chain + ":" + i.ca);
   const { data, isLoading, error } = useQuery({
-    queryKey: ["radar", filters.ageGate, filters.curve, watchedIds.join(","), filters.pad],
-    queryFn: async () => (await fetch(radarApiPath(filters.ageGate, filters.curve, watchedIds, filters.pad), { cache: "no-store" })).json() as Promise<RadarPayload>,
+    queryKey: ["radar", filters.ageGate, filters.curve, watchedIds.join(","), filters.pad, filters.early],
+    queryFn: async () => (await fetch(radarApiPath(filters.ageGate, filters.curve, watchedIds, filters.pad, filters.early), { cache: "no-store" })).json() as Promise<RadarPayload>,
     refetchInterval: 20_000,
   });
   const tokens = data?.tokens || [];

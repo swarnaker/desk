@@ -28,6 +28,7 @@ This is **not** Grok Build. There is no in-app Publish button here.
 | `BITQUERY_API_KEY` | optional | Pons factory fallback. |
 | `SOLANA_RPC_URL` | optional | Leave empty. |
 | `DEXSCREENER_BASE_URL` | optional | Default public Dex API. |
+| `PAYBOX_INTENT_URL` | optional | Intent URL only, no credentials, unset = clipboard+panel only. Never a user/password. |
 
 Never add `NEXT_PUBLIC_*` copies of these. Never paste secrets into the repo or chat.
 

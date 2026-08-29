@@ -11,7 +11,7 @@ export {
 export { inferStage, curveFillAllowed } from "./stage";
 export { inferLane, isOnCurve, isSurvived, isStretchException, sortLane, splitLanes, computeBirth, computeWake } from "./lane";
 export { heatScore, isMoving } from "./heat";
-export { applyFilters, DEFAULT_FILTERS, passesAgeGate, passesBondingGate, passesActivityGate, isBoostedHidden, isPonsMcapBook, isPonsMcapExtra, rowIsStretch, minAgeSec, tx1h } from "./filters";
+export { applyFilters, DEFAULT_FILTERS, passesAgeGate, passesBondingGate, passesActivityGate, isBoostedHidden, isPonsMcapBook, isPonsMcapExtra, isEarlyPons, rowIsStretch, minAgeSec, tx1h } from "./filters";
 export { riskFromFlags, isHiddenRisky } from "./risk";
 export type { HolderRiskInput } from "./risk";
 export { formatUsd, formatAge, formatPct, shortCa, EM } from "./format";
@@ -31,6 +31,11 @@ export type { CanonicalPin } from "./canonical";
 export { fireWatchToast, watchToastTitle, watchToastBody, watchToastHref, telegramWatchText, toastDedupeOk, birthWakeFlip, TOAST_COOLDOWN_MS, TOAST_SEEN_KEY } from "./alerts";
 export type { BirthWake } from "./alerts";
 export { copyText, COPIED_HINT_MS } from "./copyCa";
-export { parseAgeGateParam, parsePadParam, hiddenUnderLabel, radarApiPath } from "./radarPath";
+export { parseAgeGateParam, parsePadParam, parseEarlyParam, hiddenUnderLabel, radarApiPath } from "./radarPath";
 
 export { isRealDeployer, applyDeployerStats, deployerStats7d, deskOrganicBadge } from "./deployer";
+
+export {
+  FAKE_MAJOR_TICKERS, PROPOSE_USD, PROPOSE_COOLDOWN_MS, PROPOSE_MIN_AGE_SEC,
+  PROPOSE_MIN_BUYERS, PROPOSE_MIN_VOL1H, canPropose, formatProposeDraft, deskPublicUrl,
+} from "./propose";

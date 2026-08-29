@@ -176,11 +176,11 @@ function hideSameTickerCopies(rows: TokenRow[]): { rows: TokenRow[]; hidden: num
   return { rows: out, hidden };
 }
 
-export type RadarListOpts = { ageGate?: AgeGate; curve?: boolean; watched?: Set<string>; pad?: Filters["pad"] };
+export type RadarListOpts = { ageGate?: AgeGate; curve?: boolean; watched?: Set<string>; pad?: Filters["pad"]; early?: boolean };
 
-function resolveListOpts(opts?: RadarListOpts): { ageGate: AgeGate; curve: boolean; watched: Set<string>; pad: Filters["pad"] } {
+function resolveListOpts(opts?: RadarListOpts): { ageGate: AgeGate; curve: boolean; watched: Set<string>; pad: Filters["pad"]; early: boolean } {
   const ageGate = parseAgeGateParam(opts?.ageGate);
-  return { ageGate, curve: opts?.curve === true, watched: opts?.watched ?? new Set(), pad: opts?.pad ?? "ALL" };
+  return { ageGate, curve: opts?.curve === true, watched: opts?.watched ?? new Set(), pad: opts?.pad ?? "ALL", early: opts?.early === true };
 }
 
 function countHiddenUnderAge(tokens: TokenRow[], ageGate: AgeGate): number {
@@ -189,23 +189,23 @@ function countHiddenUnderAge(tokens: TokenRow[], ageGate: AgeGate): number {
   return tokens.filter((t) => (t.ageSec ?? 0) < min && !rowIsStretch(t)).length;
 }
 
-function gateDisplay(tokens: TokenRow[], opts: { ageGate: AgeGate; curve: boolean; watched: Set<string>; pad?: Filters["pad"] }): TokenRow[] {
-  return applyFilters(tokens, { ...DEFAULT_FILTERS, ageGate: opts.ageGate, curve: opts.curve, pad: opts.pad ?? "ALL" }, opts.watched);
+function gateDisplay(tokens: TokenRow[], opts: { ageGate: AgeGate; curve: boolean; watched: Set<string>; pad?: Filters["pad"]; early?: boolean }): TokenRow[] {
+  return applyFilters(tokens, { ...DEFAULT_FILTERS, ageGate: opts.ageGate, curve: opts.curve, pad: opts.pad ?? "ALL", early: opts.early === true }, opts.watched);
 }
 
 function ponsBooksByMcapCount(
   gated: TokenRow[],
-  gates: { ageGate: AgeGate; curve: boolean; watched: Set<string>; pad: Filters["pad"] },
+  gates: { ageGate: AgeGate; curve: boolean; watched: Set<string>; pad: Filters["pad"]; early: boolean },
 ): number {
   if (gates.pad !== "PONS") return 0;
-  const f: Filters = { ...DEFAULT_FILTERS, ageGate: gates.ageGate, curve: gates.curve, pad: "PONS" };
+  const f: Filters = { ...DEFAULT_FILTERS, ageGate: gates.ageGate, curve: gates.curve, pad: "PONS", early: gates.early };
   return gated.filter((t) => isPonsMcapExtra(t, f, gates.watched)).length;
 }
 
 function withPonsBooksBanner(
   banners: RadarBanners,
   gated: TokenRow[],
-  gates: { ageGate: AgeGate; curve: boolean; watched: Set<string>; pad: Filters["pad"] },
+  gates: { ageGate: AgeGate; curve: boolean; watched: Set<string>; pad: Filters["pad"]; early: boolean },
 ): RadarBanners {
   return { ...banners, ponsBooksByMcap: ponsBooksByMcapCount(gated, gates) };
 }

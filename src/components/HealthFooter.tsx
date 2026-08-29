@@ -33,12 +33,13 @@ export function HealthFooter({ signedIn = false }: { signedIn?: boolean }) {
   const ageGate = ctx?.filters.ageGate ?? "6h";
   const curve = ctx?.filters.curve ?? false;
   const pad = ctx?.filters.pad ?? "ALL";
+  const early = ctx?.filters.early ?? false;
   const watch = useWatch();
   const watchedIds = watch.file.items.map((i) => i.chain + ":" + i.ca);
   const { data } = useQuery({
-    queryKey: ["radar", ageGate, curve, watchedIds.join(","), pad],
+    queryKey: ["radar", ageGate, curve, watchedIds.join(","), pad, early],
     queryFn: async () => {
-      const res = await fetch(radarApiPath(ageGate, curve, watchedIds, pad), { cache: "no-store" });
+      const res = await fetch(radarApiPath(ageGate, curve, watchedIds, pad, early), { cache: "no-store" });
       if (!res.ok) return null;
       return (await res.json()) as RadarPayload;
     },
@@ -65,7 +66,7 @@ export function HealthFooter({ signedIn = false }: { signedIn?: boolean }) {
     <footer className="fixed bottom-0 left-0 right-0 border-t border-hairline bg-bg/95 px-3 py-1.5 font-mono text-[11px] tabular text-mute">
       <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-2">
         <span>
-          {bit("Dex pumpfun", pump)} · {bit("pons catalog", catalog)} · {factoryLine} · {tgLine} · last success {ago(data?.lastSuccessAt)}
+          {bit("Dex pumpfun", pump)} · {bit("pons catalog", catalog)} · {factoryLine} · {tgLine} · paybox draft only · last success {ago(data?.lastSuccessAt)}
         </span>
         <span className="text-[10px]">{data?.stale ? "STALE" : "live"} · {(data?.tokens ?? []).length} rows · {hiddenN} hidden under {hiddenLabel}{pad === "PONS" && (data?.banners?.ponsBooksByMcap ?? 0) > 0 ? ` · ${data?.banners?.ponsBooksByMcap} pons books included by mcap` : ""}</span>
       </div>

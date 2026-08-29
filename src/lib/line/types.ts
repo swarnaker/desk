@@ -104,6 +104,8 @@ export type Filters = {
   firstOnly: boolean;
   birthOnly: boolean;
   wakeOnly: boolean;
+  /** Exclusive 1h–12h graduated Pons tape. Off by default. */
+  early: boolean;
   hideRisky: boolean;
   stocks: boolean;
 };

@@ -26,7 +26,7 @@ function loadTs(rel) {
   const req = (q) => {
     if (q.startsWith("./")) {
       const name = q.replace("./", "") + (q.endsWith(".ts") ? "" : ".ts");
-      const file = ["types.ts", "lane.ts", "filters.ts", "risk.ts", "copyCa.ts", "radarPath.ts", "format.ts", "stage.ts"].find((f) => f === name || f === q.slice(2) + ".ts");
+      const file = ["types.ts", "lane.ts", "filters.ts", "risk.ts", "copyCa.ts", "radarPath.ts", "format.ts", "stage.ts", "propose.ts", "physics.ts"].find((f) => f === name || f === q.slice(2) + ".ts");
       if (file) return loadTs(file);
     }
     return Module.createRequire(abs)(q);
@@ -36,11 +36,12 @@ function loadTs(rel) {
   return m.exports;
 }
 
-const { DEFAULT_FILTERS, applyFilters, minAgeSec, passesActivityGate } = loadTs("filters.ts");
+const { DEFAULT_FILTERS, applyFilters, minAgeSec, passesActivityGate, isEarlyPons } = loadTs("filters.ts");
 const { inferLane, computeBirth, computeWake } = loadTs("lane.ts");
 const { HOUR, DAY, ACTIVITY_VOL1H_USD, ACTIVITY_TX_1H } = loadTs("types.ts");
 const { COPIED_HINT_MS } = loadTs("copyCa.ts");
 const { parseAgeGateParam, hiddenUnderLabel } = loadTs("radarPath.ts");
+const { canPropose, formatProposeDraft, FAKE_MAJOR_TICKERS, PROPOSE_USD } = loadTs("propose.ts");
 
 const fails = [];
 function ok(cond, msg) {
@@ -238,6 +239,104 @@ ok(ponsChip.some((r) => r.symbol === "QUIETPONS"), "pad PONS keeps quiet graduat
 ok(!allChip.some((r) => r.symbol === "QUIETPONS"), "pad ALL drops quiet graduated Pons $3M");
 ok(!o1Chip.some((r) => r.symbol === "QUIETPONS"), "pad O1 drops quiet graduated Pons $3M");
 
+ok(DEFAULT_FILTERS.early === false, "EARLY chip off by default");
+ok(PROPOSE_USD === 8, "PROPOSE_USD is 8");
+ok(FAKE_MAJOR_TICKERS.has("LINK") && FAKE_MAJOR_TICKERS.has("BTC"), "fake major set includes LINK/BTC");
+
+const gtaLike = row({
+  symbol: "GTAAPE",
+  name: "GTA Ape",
+  ca: "Gtaape1111111111111111111111111111111111111",
+  chain: "solana",
+  pad: "PUMP",
+  stage: "MOVING",
+  ageSec: 7 * HOUR,
+  vol1hUsd: 130000,
+  uniqueBuyers1h: null,
+});
+ok(canPropose(gtaLike).ok, "GTAAPE-like row enables propose");
+const draft = formatProposeDraft(gtaLike);
+ok(draft.startsWith("PayBox Always Ask"), "draft title PayBox Always Ask");
+ok(draft.includes("Buy $8 of GTAAPE"), "draft sizes $8");
+ok(draft.includes("https://desk-jxwk.vercel.app/t/solana/"), "draft desk URL");
+
+const onCurveNo = row({
+  symbol: "CURVEPRO",
+  ca: "CurvePro11111111111111111111111111111111111",
+  pad: "PUMP",
+  stage: "ON_CURVE",
+  ageSec: 7 * HOUR,
+  vol1hUsd: 20000,
+  uniqueBuyers1h: 25,
+});
+ok(!canPropose(onCurveNo).ok, "ON_CURVE disables propose");
+
+const redNo = {
+  ...row({
+    symbol: "REDTKN",
+    ca: "RedTkn1111111111111111111111111111111111111",
+    pad: "PONS",
+    stage: "GRADUATED",
+    ageSec: 7 * HOUR,
+    vol1hUsd: 20000,
+    uniqueBuyers1h: 25,
+    chain: "robinhood",
+  }),
+  risk: { level: "RED", flags: ["HONEYPOT"] },
+};
+ok(!canPropose(redNo).ok, "RED risk disables propose");
+
+const linkNo = row({
+  symbol: "LINK",
+  ca: "Link111111111111111111111111111111111111111",
+  pad: "PONS",
+  stage: "GRADUATED",
+  ageSec: 7 * HOUR,
+  vol1hUsd: 20000,
+  uniqueBuyers1h: 25,
+  chain: "robinhood",
+});
+ok(!canPropose(linkNo).ok, "fake LINK ticker disables propose");
+
+const youngNo = row({
+  symbol: "YOUNG",
+  ca: "Young11111111111111111111111111111111111111",
+  pad: "PONS",
+  stage: "GRADUATED",
+  ageSec: 10 * 60,
+  vol1hUsd: 20000,
+  uniqueBuyers1h: 25,
+  chain: "robinhood",
+});
+ok(!canPropose(youngNo).ok, "age 10m disables propose");
+
+const early2h = row({
+  symbol: "EARLY2",
+  ca: "Early2h111111111111111111111111111111111111",
+  pad: "PONS",
+  stage: "GRADUATED",
+  ageSec: 2 * HOUR,
+  uniqueBuyers1h: 25,
+  vol1hUsd: 8000,
+  chain: "robinhood",
+});
+const early20h = row({
+  symbol: "OLD20",
+  ca: "Old20h1111111111111111111111111111111111111",
+  pad: "PONS",
+  stage: "GRADUATED",
+  ageSec: 20 * HOUR,
+  uniqueBuyers1h: 25,
+  vol1hUsd: 8000,
+  chain: "robinhood",
+});
+ok(isEarlyPons(early2h), "2h Pons GRAD 25 buyers isEarlyPons");
+ok(!isEarlyPons(early20h), "20h Pons is not early");
+const earlyOn = applyFilters([early2h, early20h], { ...DEFAULT_FILTERS, early: true }, new Set());
+ok(earlyOn.some((r) => r.symbol === "EARLY2"), "early filter keeps 2h Pons GRAD with 25 buyers");
+ok(!earlyOn.some((r) => r.symbol === "OLD20"), "early filter drops a 20h Pons");
+ok(!applyFilters([early2h], DEFAULT_FILTERS, new Set()).some((r) => r.symbol === "EARLY2"), "All default still hides <6h");
+
 const laneSrc = fs.readFileSync(path.join(__dirname, "..", "src", "components", "Lane.tsx"), "utf8");
 ok(laneSrc.includes("<CopyCa ca={row.ca}"), "Lane CA cell uses CopyCa");
 ok(laneSrc.includes("<a href={href}") && laneSrc.includes("{row.symbol}</a>"), "token NAME keeps <a href> to desk");
@@ -265,9 +364,14 @@ ok(copyLib.includes("execCommand(") && copyLib.includes("'copy'") || copyLib.inc
 
 const deskSrc = fs.readFileSync(path.join(__dirname, "..", "src", "components", "TokenDesk.tsx"), "utf8");
 ok(deskSrc.includes("<CopyCa ca={t.ca}"), "desk CA uses CopyCa");
+ok(deskSrc.includes("PROPOSE $8"), "desk has PROPOSE $8");
+ok(deskSrc.includes("PAYBOX DRAFT"), "desk shows PAYBOX DRAFT panel");
+ok(!/Connect Wallet|wagmi|useConnect/i.test(deskSrc), "desk has no Connect Wallet");
 
 const barSrc = fs.readFileSync(path.join(__dirname, "..", "src", "components", "FilterBar.tsx"), "utf8");
 ok(barSrc.includes('"6h"') && barSrc.includes('"1h"') && barSrc.includes('"2h"') && barSrc.includes("any age"), "chips 1h | 2h | 6h | any age");
+ok(barSrc.includes(">EARLY<") || barSrc.includes("EARLY"), "EARLY chip after WAKE");
+ok(barSrc.includes("wakeOnly") && barSrc.indexOf("WAKE") < barSrc.indexOf("EARLY"), "EARLY chip is after WAKE");
 
 const apiSrc = fs.readFileSync(path.join(__dirname, "..", "src", "app", "api", "radar", "route.ts"), "utf8");
 ok(apiSrc.includes("parseAgeGateParam"), "GET /api/radar uses parseAgeGateParam (default 6h)");

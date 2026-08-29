@@ -49,6 +49,7 @@ export function FilterBar({
       <Chip on={filters.curve} onClick={() => set({ curve: !filters.curve })}>Curve</Chip>
       <Chip on={filters.birthOnly} onClick={() => set({ birthOnly: !filters.birthOnly })}>BIRTH</Chip>
       <Chip on={filters.wakeOnly} onClick={() => set({ wakeOnly: !filters.wakeOnly })}>WAKE</Chip>
+      <Chip on={filters.early} onClick={() => set({ early: !filters.early })}>EARLY</Chip>
       <Chip on={filters.watchOnly} onClick={() => set({ watchOnly: !filters.watchOnly })}>Watch {watchCount}</Chip>
       <button type="button" className="chip hover:text-ink" onClick={() => setFilters(DEFAULT_FILTERS)}>Reset</button>
     </div>

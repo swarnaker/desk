@@ -4,9 +4,12 @@ import { EM, formatAge, formatPct, formatUsd, shortCa } from "@/lib/line/format"
 import { physicsBits } from "@/lib/line/physics";
 import { isChain, isEvmCa, isSolMint } from "@/lib/line/ca";
 import type { Chain, RadarPayload, TokenClone, TokenRow } from "@/lib/line/types";
+import { copyText } from "@/lib/line/copyCa";
+import { canPropose, formatProposeDraft, PROPOSE_COOLDOWN_MS } from "@/lib/line/propose";
 import { useWatch } from "@/hooks/useWatch";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { CopyCa } from "./CopyCa";
 
 export function TokenDesk() {
@@ -69,6 +72,7 @@ export function TokenDesk() {
           <div className={t.risk.level === "RED" ? "text-sell" : t.risk.level === "AMBER" ? "text-gold" : "text-live"}>{t.risk.level}</div>
           <button type="button" className={"mt-2 chip " + (watched ? "chip-on" : "")} onClick={() => watch.toggle(t.chain, t.ca)}>{watched ? "WATCHED" : "WATCH"}</button>
           <button type="button" className="ml-1 chip" onClick={() => watch.markFirst(t.chain, t.ca)}>FIRST</button>
+          <ProposeDraft row={t} />
         </div>
       </div>
       <div className="grid gap-3 md:grid-cols-3">
@@ -138,6 +142,86 @@ export function TokenDesk() {
         <ExtLinks chain={t.chain} ca={t.ca} gmgn={t.links.gmgn} dex={t.links.dex} scan={t.links.scan} />
       </Panel>
     </div>
+  );
+}
+
+
+const PROPOSE_LS = "line.propose.v1";
+
+function proposeKey(chain: string, ca: string): string {
+  return chain + ":" + ca.toLowerCase();
+}
+
+function readProposeMap(): Record<string, number> {
+  if (typeof localStorage === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(PROPOSE_LS);
+    const parsed = JSON.parse(raw || "{}") as Record<string, number>;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function isProposeCooling(chain: string, ca: string, now = Date.now()): boolean {
+  const ts = readProposeMap()[proposeKey(chain, ca)];
+  return ts != null && now - ts < PROPOSE_COOLDOWN_MS;
+}
+
+function recordPropose(chain: string, ca: string, now = Date.now()) {
+  const map = readProposeMap();
+  map[proposeKey(chain, ca)] = now;
+  try {
+    localStorage.setItem(PROPOSE_LS, JSON.stringify(map));
+  } catch {
+    /* quota */
+  }
+}
+
+function ProposeDraft({ row }: { row: TokenRow }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const [cooled, setCooled] = useState(false);
+  useEffect(() => {
+    setCooled(isProposeCooling(row.chain, row.ca));
+  }, [row.chain, row.ca]);
+  const gate = canPropose(row);
+  const enabled = gate.ok && !cooled;
+  return (
+    <>
+      <button
+        type="button"
+        className="ml-1 chip disabled:cursor-not-allowed disabled:opacity-40"
+        disabled={!enabled}
+        title={cooled ? "already proposed" : undefined}
+        onClick={() => {
+          if (!canPropose(row).ok || isProposeCooling(row.chain, row.ca)) return;
+          const text = formatProposeDraft(row);
+          copyText(text);
+          recordPropose(row.chain, row.ca);
+          setCooled(true);
+          setDraft(text);
+          void fetch("/api/propose?chain=" + encodeURIComponent(row.chain) + "&ca=" + encodeURIComponent(row.ca), { cache: "no-store" })
+            .then(async (res) => {
+              try {
+                const json = (await res.json()) as { intentUrl?: string | null };
+                if (typeof json.intentUrl === "string" && json.intentUrl) {
+                  window.open(json.intentUrl, "_blank", "noopener,noreferrer");
+                }
+              } catch {
+                /* draft already copied */
+              }
+            });
+        }}
+      >
+        PROPOSE $8
+      </button>
+      {draft ? (
+        <section className="mt-3 w-full max-w-sm border border-hairline bg-surface p-3 text-left">
+          <h2 className="mb-2 text-[11px] tracking-[0.2em] text-gold">PAYBOX DRAFT</h2>
+          <pre className="whitespace-pre-wrap break-all font-mono text-[11px] text-ink">{draft}</pre>
+        </section>
+      ) : null}
+    </>
   );
 }
 

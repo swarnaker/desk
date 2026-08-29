@@ -22,6 +22,7 @@ export const DEFAULT_FILTERS: Filters = {
   firstOnly: false,
   birthOnly: false,
   wakeOnly: false,
+  early: false,
   hideRisky: false,
   stocks: false,
 };
@@ -64,6 +65,16 @@ export function isPonsMcapExtra(row: TokenRow, f: Filters, watchSet: Set<string>
   if (!passesActivityGate(row, watchSet)) return true;
   if (row.lane === "BOOK" && !((row.vol1hUsd ?? 0) > 0) && !watched(row, watchSet)) return true;
   return false;
+}
+
+/** Exclusive EARLY chip: graduated Pons aged 1h–12h with buyers or fallback vol. */
+export function isEarlyPons(row: TokenRow): boolean {
+  if (row.pad !== "PONS") return false;
+  if (row.stage !== "GRADUATED") return false;
+  if (row.ageSec == null || !Number.isFinite(row.ageSec)) return false;
+  if (row.ageSec < HOUR || row.ageSec > 12 * HOUR) return false;
+  if (row.uniqueBuyers1h != null) return row.uniqueBuyers1h >= 20;
+  return (row.vol1hUsd ?? 0) >= 5000;
 }
 
 /** Factory-seen-before-pair: factory source and no Dex pair yet. FIRST includes these. */
@@ -125,7 +136,11 @@ export function isBoostedHidden(row: TokenRow): boolean {
 }
 
 function matchRow(row: TokenRow, f: Filters, watchSet: Set<string>): boolean {
-  if (!passesAgeGate(row, f, watchSet)) return false;
+  if (f.early) {
+    if (!isEarlyPons(row)) return false;
+  } else if (!passesAgeGate(row, f, watchSet)) {
+    return false;
+  }
   if (!passesBondingGate(row, f)) return false;
   if (!passesActivityGate(row, watchSet) && !(f.pad === "PONS" && isPonsMcapBook(row, f, watchSet))) return false;
   if (isBoostedHidden(row) && !watched(row, watchSet)) return false;
