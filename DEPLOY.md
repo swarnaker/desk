@@ -2,7 +2,7 @@
 
 Quick Cloudflare tunnels expire. Use a real host. LINE is **signal-only**: no wallet, no swaps, no keys in the browser.
 
-Private repo: https://github.com/swarnaker/line
+Private repo: https://github.com/swarnaker/desk
 
 This is **not** Grok Build. There is no in-app Publish button here.
 
@@ -12,7 +12,7 @@ This is **not** Grok Build. There is no in-app Publish button here.
 
 ## 2. Vercel (Next.js)
 
-1. [vercel.com](https://vercel.com) → Add New → Project → Import `swarnaker/line` (GitHub, private).
+1. [vercel.com](https://vercel.com) → Add New → Project → Import `swarnaker/desk` (GitHub, private).
 2. Framework: Next.js. Root: repo root. Build: default (`next build`).
 3. **Settings → Environment Variables** (Production + Preview). Names only, no quotes in this doc:
 
@@ -41,4 +41,4 @@ Never add `NEXT_PUBLIC_*` copies of these. Never paste secrets into the repo or 
 
 ## 4. GitHub
 
-Already exported as a **private** repo: `swarnaker/line` on `master`. Push from `/workspace/line` after changes. Do not `git add .env.local`.
+Already exported as a **private** repo: `swarnaker/desk` on `master`. Push from `/workspace/line` after changes. Do not `git add .env.local`.
