@@ -6,6 +6,7 @@ import { isChain, isEvmCa, isSolMint } from "@/lib/line/ca";
 import type { Chain, RadarPayload, TokenClone, TokenRow } from "@/lib/line/types";
 import { copyText } from "@/lib/line/copyCa";
 import { canPropose, formatProposeDraft, PROPOSE_COOLDOWN_MS } from "@/lib/line/propose";
+import { LINE_PROPOSE_LABEL } from "@/lib/line/uiLabels";
 import { useWatch } from "@/hooks/useWatch";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
@@ -190,6 +191,9 @@ function ProposeDraft({ row }: { row: TokenRow }) {
     <>
       <button
         type="button"
+        id="line-propose-8"
+        data-line="propose-8"
+        aria-label={LINE_PROPOSE_LABEL}
         className="ml-1 chip disabled:cursor-not-allowed disabled:opacity-40"
         disabled={!enabled}
         title={cooled ? "already proposed" : undefined}
@@ -213,7 +217,7 @@ function ProposeDraft({ row }: { row: TokenRow }) {
             });
         }}
       >
-        PROPOSE $8
+        {LINE_PROPOSE_LABEL}
       </button>
       {draft ? (
         <section className="mt-3 w-full max-w-sm border border-hairline bg-surface p-3 text-left">

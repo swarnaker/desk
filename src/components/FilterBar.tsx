@@ -1,5 +1,6 @@
 "use client";
 import { DEFAULT_FILTERS } from "@/lib/line/filters";
+import { LINE_EARLY_CHIP } from "@/lib/line/uiLabels";
 import type { AgeGate, Filters, Pad } from "@/lib/line/types";
 
 function Chip({ on, children, onClick }: { on: boolean; children: React.ReactNode; onClick: () => void }) {
@@ -49,7 +50,9 @@ export function FilterBar({
       <Chip on={filters.curve} onClick={() => set({ curve: !filters.curve })}>Curve</Chip>
       <Chip on={filters.birthOnly} onClick={() => set({ birthOnly: !filters.birthOnly })}>BIRTH</Chip>
       <Chip on={filters.wakeOnly} onClick={() => set({ wakeOnly: !filters.wakeOnly })}>WAKE</Chip>
-      <Chip on={filters.early} onClick={() => set({ early: !filters.early })}>EARLY</Chip>
+      <Chip on={!!filters.early} onClick={() => set({ early: !filters.early })}>
+        <span id="line-early" data-line="early" aria-label={LINE_EARLY_CHIP}>{LINE_EARLY_CHIP}</span>
+      </Chip>
       <Chip on={filters.watchOnly} onClick={() => set({ watchOnly: !filters.watchOnly })}>Watch {watchCount}</Chip>
       <button type="button" className="chip hover:text-ink" onClick={() => setFilters(DEFAULT_FILTERS)}>Reset</button>
     </div>
