@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+
+html, body {
+  background: #07080B;
+  color: #E8E6DF;
+  min-height: 100%;
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background-image: radial-gradient(900px 400px at 8% -10%, rgba(232,185,35,0.05), transparent 50%);
+}
+
+* { scrollbar-width: thin; scrollbar-color: #1E2230 #07080B; }
+
+.tabular { font-variant-numeric: tabular-nums; }
+
+.chip { @apply px-2 py-0.5 text-[11px] tracking-wide border border-hairline text-mute; }
+.chip-on { background: #E8B923; color: #07080B; border-color: #E8B923; }
+
+.row-h { height: 54px; }
+
+/* Token cell used display:block + truncate inside table.w-full, so that column
+   ate 100% width and CA/pad/mcap/vol/… collapsed to 0. Fixed layout keeps every col. */
+.radar-table {
+  table-layout: fixed;
+  width: max(100%, 1240px);
+}
+.radar-table th,
+.radar-table td {
+  display: table-cell;
+  vertical-align: middle;
+}
+.radar-table td:nth-child(2) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.radar-table th:nth-child(1), .radar-table td:nth-child(1) { width: 72px; }
+.radar-table th:nth-child(2), .radar-table td:nth-child(2) { width: 168px; }
+.radar-table th:nth-child(3), .radar-table td:nth-child(3) { width: 108px; }
+.radar-table th:nth-child(4), .radar-table td:nth-child(4) { width: 72px; }
+.radar-table th:nth-child(5), .radar-table td:nth-child(5) { width: 128px; }
+.radar-table th:nth-child(6), .radar-table td:nth-child(6) { width: 56px; }
+.radar-table th:nth-child(7), .radar-table td:nth-child(7) { width: 64px; }
+.radar-table th:nth-child(8), .radar-table td:nth-child(8) { width: 72px; }
+.radar-table th:nth-child(9), .radar-table td:nth-child(9) { width: 72px; }
+.radar-table th:nth-child(10), .radar-table td:nth-child(10) { width: 80px; }
+.radar-table th:nth-child(11), .radar-table td:nth-child(11) { width: 56px; }
+.radar-table th:nth-child(12), .radar-table td:nth-child(12) { width: 56px; }
+.radar-table th:nth-child(13), .radar-table td:nth-child(13) { width: 88px; }
+.radar-table th:nth-child(14), .radar-table td:nth-child(14) { width: 110px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.live-dot { animation: pulse-live 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .live-dot { animation: none; }
+}

@@ -1,0 +1,199 @@
+export type Chain = "robinhood" | "base" | "solana";
+export type Pad = "PONS" | "O1" | "BASE" | "PUMP";
+export type Lane = "NEW" | "STRETCH" | "BOOK";
+export type Stage =
+  | "FACTORY"
+  | "ANTI_SNIPE"
+  | "ON_CURVE"
+  | "LIVE_POOL"
+  | "GRADUATED"
+  | "MOVING";
+export type Quote = "ETH" | "WETH" | "USDC" | "USDG" | "STOCK" | "SOL" | "UNKNOWN";
+export type RiskLevel = "GREEN" | "AMBER" | "RED";
+export type Mood = "ALL" | "BUY" | "SELL" | "WHALES" | "SNIPES";
+export type AgeMax = "3h" | "12h" | "any";
+export type AgeGate = "1h" | "2h" | "6h" | "any";
+export type Bucket = "any" | "1-6h" | "older";
+export type LiqMin = 0 | 5000 | 20000 | 50000;
+export type McapMin = 0 | 5000 | 20000 | 50000 | 100000;
+
+export type TokenLinks = {
+  gmgn: string;
+  dex: string;
+  scan: string;
+};
+
+export type TokenRisk = {
+  level: RiskLevel;
+  flags: string[];
+};
+
+export type TokenClone = {
+  chain: Chain;
+  ca: string;
+  symbol: string;
+  mcapUsd?: number;
+  canonical: boolean;
+};
+
+export type TokenRow = {
+  id: string;
+  symbol: string;
+  name: string;
+  logoUrl?: string;
+  ca: string;
+  chain: Chain;
+  pad: Pad;
+  padSub?: string;
+  quote: Quote;
+  quoteCa?: string;
+  lane: Lane;
+  stage: Stage;
+  moving: boolean;
+  heat: number;
+  risk: TokenRisk;
+  mcapUsd?: number;
+  liqUsd?: number;
+  vol1hUsd?: number;
+  vol1hDeltaUsd?: number;
+  buyPct?: number;
+  buys?: number;
+  sells?: number;
+  ageSec?: number;
+  curveFillPct?: number;
+  taxEndsAt?: string;
+  firstSeenAt: string;
+  updatedAt: string;
+  sources: string[];
+  links: TokenLinks;
+  xHandle?: string;
+  holders?: number | null;
+  top10Pct?: number | null;
+  devPct?: number | null;
+  bundlePct?: number | null;
+  sniperPct?: number | null;
+  mintAuth?: boolean | null;
+  sameNameCopies?: number;
+  deployer?: string;
+  birth?: boolean;
+  wake?: boolean;
+  canonical?: boolean;
+  vol24hUsd?: number;
+  clones?: TokenClone[];
+};
+
+
+export type Filters = {
+  pad: "ALL" | Pad;
+  mood: Mood;
+  liqMin: LiqMin;
+  mcapMin: McapMin;
+  ageMax: AgeMax;
+  ageGate: AgeGate;
+  /** Bonding-curve firehose. Default false = survived names only. */
+  curve: boolean;
+  bucket: Bucket;
+  o1Gate: boolean;
+  desk: boolean;
+  watchOnly: boolean;
+  firstOnly: boolean;
+  birthOnly: boolean;
+  wakeOnly: boolean;
+  hideRisky: boolean;
+  stocks: boolean;
+};
+
+export type HeatInput = {
+  ageSec?: number;
+  buyPct?: number;
+  vol1hUsd?: number;
+  mcapUsd?: number;
+  liqUsd?: number;
+  moving: boolean;
+  curveFillPct?: number;
+  inTaxWindow: boolean;
+  sameNameCopies?: number;
+  bundlePct?: number;
+  sniperPct?: number;
+  riskLevel: RiskLevel;
+  pad: Pad;
+};
+
+export type StageInput = {
+  pad: Pad;
+  hasDexPair: boolean;
+  factoryOnly: boolean;
+  ageSec?: number;
+  launchAtMs?: number;
+  nowMs: number;
+  curveFillPct?: number;
+  graduated: boolean;
+  ponsHookGraduated: boolean;
+  ponsV1Locked: boolean;
+  vol1hUsd?: number;
+  liqUsd?: number;
+  buyPct?: number;
+};
+
+export type HealthSource = {
+  name: string;
+  ok: boolean;
+  hits: number;
+  attempts: number;
+  ms: number;
+  detail?: string;
+};
+
+export type RadarBanners = {
+  factoryBeforeDex: number;
+  mergedFromSnapshot: number;
+  staleAgoSec: number | null;
+  sameNameCopiesHidden: number;
+  hiddenUnderAge: number;
+};
+
+export type RadarPayload = {
+  tokens: TokenRow[];
+  stale: boolean;
+  lastSuccessAt: string | null;
+  fetchedAt: string;
+  banners: RadarBanners;
+  health: {
+    sources: HealthSource[];
+    hits: number;
+    attempts: number;
+  };
+};
+
+export type TapeEvent = {
+  id: string;
+  chain: Chain;
+  ca: string;
+  ts: string;
+  side?: "buy" | "sell";
+  usd?: number;
+};
+
+export interface IDataSource {
+  listRadar(): Promise<RadarPayload>;
+  getToken(chain: Chain, ca: string): Promise<TokenRow | null>;
+  listTape(): Promise<TapeEvent[]>;
+  health(): Promise<{ sources: HealthSource[]; hits: number; attempts: number }>;
+}
+
+export const FIRST_WINDOW_SEC = 2 * 60 * 60;
+export const HOUR = 3600;
+export const DAY = 24 * HOUR;
+/** Default activity gate: unwatched vol1hUsd >= 5k. Watched bypass. */
+export const ACTIVITY_VOL1H_USD = 5000;
+export const ACTIVITY_TX_1H = 20;
+export const PONS_TAX_SEC = 5;
+export const O1_TAX_SEC = 16;
+export const STRETCH_FILL = 0.7;
+export const PUMP_GRAD_MCAP = 43000;
+export const PONS_CURVE_ETH = 4.2;
+export const THIN_LP_USD = 400;
+export const EXTREME_THIN_LP_USD = 200;
+/** Far below $5k with a market → THIN LP (AMBER). */
+export const MARKET_THIN_LP_USD = 5000;
+export const DESK_PADS: Pad[] = ["PONS", "O1"];
