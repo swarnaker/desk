@@ -5,9 +5,9 @@ export function parseAgeGateParam(raw: string | null | undefined): AgeGate {
   return "6h";
 }
 
-export function parsePadParam(raw: string | null | undefined): "ALL" | Pad {
-  if (raw === "PONS" || raw === "O1" || raw === "PUMP" || raw === "BASE") return raw;
-  return "ALL";
+export function parsePadParam(raw: string | null | undefined): "BOTH" | "ALL" | Pad {
+  if (raw === "PONS" || raw === "O1" || raw === "PUMP" || raw === "BASE" || raw === "BOTH") return raw;
+  return "BOTH";
 }
 
 export function hiddenUnderLabel(gate: AgeGate | undefined): string {

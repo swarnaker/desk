@@ -1,6 +1,5 @@
 import { tickerKey } from "./filters";
 import { EM, formatAge, formatPct, formatUsd } from "./format";
-import { physicsBits } from "./physics";
 import type { TokenRow } from "./types";
 
 export const FAKE_MAJOR_TICKERS = new Set([
@@ -26,25 +25,8 @@ function deskUrl(row: Pick<TokenRow, "chain" | "ca">): string {
   return DESK_PUBLIC_ORIGIN + "/t/" + row.chain + "/" + row.ca;
 }
 
-function isPumpMigrated(row: TokenRow): boolean {
-  if (row.pad !== "PUMP") return false;
-  if (row.stage === "ON_CURVE" || row.stage === "FACTORY" || row.stage === "ANTI_SNIPE") return false;
-  if (row.stage === "GRADUATED" || row.stage === "MOVING") return true;
-  const bits = physicsBits({
-    pad: row.pad,
-    stage: row.stage,
-    quote: row.quote,
-    curveFillPct: row.curveFillPct,
-    taxEndsAt: row.taxEndsAt,
-    ageSec: row.ageSec,
-    liqUsd: row.liqUsd,
-    padSub: row.padSub,
-  });
-  return bits.kind === "migrated";
-}
-
 function padEligible(row: TokenRow): boolean {
-  return row.pad === "PONS" || row.pad === "O1" || isPumpMigrated(row);
+  return row.pad === "PONS" || row.pad === "O1";
 }
 
 function stageEligible(row: TokenRow): boolean {

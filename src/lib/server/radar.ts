@@ -180,7 +180,7 @@ export type RadarListOpts = { ageGate?: AgeGate; curve?: boolean; watched?: Set<
 
 function resolveListOpts(opts?: RadarListOpts): { ageGate: AgeGate; curve: boolean; watched: Set<string>; pad: Filters["pad"]; early: boolean } {
   const ageGate = parseAgeGateParam(opts?.ageGate);
-  return { ageGate, curve: opts?.curve === true, watched: opts?.watched ?? new Set(), pad: opts?.pad ?? "ALL", early: opts?.early === true };
+  return { ageGate, curve: opts?.curve === true, watched: opts?.watched ?? new Set(), pad: opts?.pad ?? "BOTH", early: opts?.early === true };
 }
 
 function countHiddenUnderAge(tokens: TokenRow[], ageGate: AgeGate): number {
@@ -190,7 +190,7 @@ function countHiddenUnderAge(tokens: TokenRow[], ageGate: AgeGate): number {
 }
 
 function gateDisplay(tokens: TokenRow[], opts: { ageGate: AgeGate; curve: boolean; watched: Set<string>; pad?: Filters["pad"]; early?: boolean }): TokenRow[] {
-  return applyFilters(tokens, { ...DEFAULT_FILTERS, ageGate: opts.ageGate, curve: opts.curve, pad: opts.pad ?? "ALL", early: opts.early === true }, opts.watched);
+  return applyFilters(tokens, { ...DEFAULT_FILTERS, ageGate: opts.ageGate, curve: opts.curve, pad: opts.pad ?? "BOTH", early: opts.early === true }, opts.watched);
 }
 
 function ponsBooksByMcapCount(

@@ -112,11 +112,13 @@ export function computeBirth(row: {
 /** WAKE = age >= 24h AND vol1hUsd >= max(3*(vol24hUsd/24), 25000) AND uniqueBuyers1h >= 15.
  *  Missing uniqueBuyers1h → skip WAKE (never invent 0). Dust cannot WAKE. */
 export function computeWake(row: {
+  pad?: Pad;
   ageSec?: number;
   vol1hUsd?: number;
   vol24hUsd?: number;
   uniqueBuyers1h?: number | null;
 }): boolean {
+  if (row.pad !== "PONS" && row.pad !== "O1") return false;
   if (row.ageSec == null || row.ageSec < DAY) return false;
   if (row.vol1hUsd == null) return false;
   const vol24 = row.vol24hUsd;

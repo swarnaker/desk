@@ -40,7 +40,7 @@ const { DEFAULT_FILTERS, applyFilters, minAgeSec, passesActivityGate, isEarlyPon
 const { inferLane, computeBirth, computeWake } = loadTs("lane.ts");
 const { HOUR, DAY, ACTIVITY_VOL1H_USD, ACTIVITY_TX_1H } = loadTs("types.ts");
 const { COPIED_HINT_MS } = loadTs("copyCa.ts");
-const { parseAgeGateParam, hiddenUnderLabel } = loadTs("radarPath.ts");
+const { parseAgeGateParam, hiddenUnderLabel, parsePadParam, radarApiPath } = loadTs("radarPath.ts");
 const { canPropose, formatProposeDraft, FAKE_MAJOR_TICKERS, PROPOSE_USD } = loadTs("propose.ts");
 
 const fails = [];
@@ -56,7 +56,7 @@ function row(p) {
     name: p.symbol || "RON",
     ca: p.ca || "Token111111111111111111111111111111111111111",
     chain: p.chain || "solana",
-    pad: p.pad || "PUMP",
+    pad: p.pad || "PONS",
     quote: "SOL",
     lane: p.lane || "NEW",
     stage: p.stage || "GRADUATED",
@@ -86,6 +86,15 @@ function row(p) {
 
 ok(DEFAULT_FILTERS.ageGate === "6h", "DEFAULT_FILTERS.ageGate is 6h");
 ok(DEFAULT_FILTERS.curve === false, "Curve off by default");
+ok(DEFAULT_FILTERS.pad === "BOTH", "DEFAULT_FILTERS.pad is BOTH");
+ok(parsePadParam(null) === "BOTH", "parsePadParam omitted === BOTH");
+ok(parsePadParam(undefined) === "BOTH", "parsePadParam undefined === BOTH");
+ok(parsePadParam("ALL") === "BOTH", "parsePadParam ALL => BOTH");
+ok(parsePadParam("BOTH") === "BOTH", "parsePadParam BOTH");
+ok(parsePadParam("PONS") === "PONS", "parsePadParam PONS");
+ok(radarApiPath("6h", false, []) === "/api/radar", "radarApiPath omits pad for default Both");
+ok(radarApiPath("6h", false, [], "BOTH") === "/api/radar", "radarApiPath omits pad for BOTH");
+ok(radarApiPath("6h", false, [], "PONS").includes("pad=PONS"), "radarApiPath sets pad for PONS");
 ok(minAgeSec("6h") === 6 * HOUR, "minAgeSec 6h = 21600");
 ok(minAgeSec(undefined) === 6 * HOUR, "minAgeSec default 6h");
 ok(minAgeSec("1h") === HOUR, "minAgeSec 1h = 3600");
@@ -97,7 +106,7 @@ ok(hiddenUnderLabel("6h") === "6h", "footer label 6h");
 ok(ACTIVITY_VOL1H_USD === 5000, "activity 5k vol1h");
 ok(COPIED_HINT_MS === 1000, "copied hint timeout 1000ms");
 
-const ron1h = row({ symbol: "RON", ageSec: HOUR, vol1hUsd: 20000, stage: "GRADUATED", pad: "PUMP" });
+const ron1h = row({ symbol: "RON", ageSec: HOUR, vol1hUsd: 20000, stage: "GRADUATED" });
 const as1h = row({ symbol: "ASSE", ca: "Asse111111111111111111111111111111111111111", ageSec: 4000, vol1hUsd: 8000, stage: "GRADUATED" });
 const sevenH = row({
   symbol: "SEVEN",
@@ -105,7 +114,6 @@ const sevenH = row({
   ageSec: 7 * HOUR,
   vol1hUsd: 20000,
   stage: "GRADUATED",
-  pad: "PUMP",
 });
 const quiet7h = row({
   symbol: "DEAD",
@@ -205,6 +213,7 @@ ok(computeWake(realWake) === true, "24h+ with vol1h >= max(3*hourly, 25k) and 20
 ok(computeWake(washWake) === false, "$40k/h + 3 unique buyers is not WAKE");
 ok(computeWake(organicWake) === true, "$40k/h + 20 unique buyers can WAKE");
 ok(computeWake({ ...organicWake, uniqueBuyers1h: null }) === false, "missing uniqueBuyers1h skips WAKE");
+ok(computeWake({ ...realWake, pad: "PUMP" }) === false, "Pump never WAKE even if vol/buyers pass");
 
 const watched = applyFilters([youngWatch, ron1h], DEFAULT_FILTERS, new Set([youngWatch.ca.toLowerCase()]));
 ok(watched.some((r) => r.symbol === "BABY"), "watched young/quiet still shows");
@@ -236,8 +245,23 @@ const ponsChip = applyFilters([quietPonsMcap], { ...DEFAULT_FILTERS, pad: "PONS"
 const allChip = applyFilters([quietPonsMcap], DEFAULT_FILTERS, new Set());
 const o1Chip = applyFilters([quietPonsMcap], { ...DEFAULT_FILTERS, pad: "O1" }, new Set());
 ok(ponsChip.some((r) => r.symbol === "QUIETPONS"), "pad PONS keeps quiet graduated Pons $3M");
-ok(!allChip.some((r) => r.symbol === "QUIETPONS"), "pad ALL drops quiet graduated Pons $3M");
+ok(!allChip.some((r) => r.symbol === "QUIETPONS"), "Both/default drops quiet graduated Pons $3M");
 ok(!o1Chip.some((r) => r.symbol === "QUIETPONS"), "pad O1 drops quiet graduated Pons $3M");
+
+const pumpRow = row({
+  symbol: "PUMPROW",
+  ca: "PumpRow11111111111111111111111111111111111",
+  ageSec: 7 * HOUR,
+  vol1hUsd: 20000,
+  stage: "GRADUATED",
+  pad: "PUMP",
+});
+ok(applyFilters([pumpRow], DEFAULT_FILTERS).length === 0, "default board hides PUMP");
+ok(applyFilters([pumpRow], { ...DEFAULT_FILTERS, pad: "PUMP" }).some((r) => r.symbol === "PUMPROW"), "Pump chip keeps PUMP if other gates pass");
+ok(
+  applyFilters([pumpRow], DEFAULT_FILTERS, new Set([pumpRow.ca.toLowerCase()])).length === 0,
+  "watched Pump still hidden on Both",
+);
 
 ok(DEFAULT_FILTERS.early === false, "EARLY chip off by default");
 ok(PROPOSE_USD === 8, "PROPOSE_USD is 8");
@@ -254,8 +278,20 @@ const gtaLike = row({
   vol1hUsd: 130000,
   uniqueBuyers1h: null,
 });
-ok(canPropose(gtaLike).ok, "GTAAPE-like row enables propose");
-const draft = formatProposeDraft(gtaLike);
+ok(!canPropose(gtaLike).ok, "Pump desk cannot propose");
+const draftRow = row({
+  symbol: "GTAAPE",
+  name: "GTA Ape",
+  ca: "Gtaape1111111111111111111111111111111111111",
+  chain: "solana",
+  pad: "PONS",
+  stage: "MOVING",
+  ageSec: 7 * HOUR,
+  vol1hUsd: 130000,
+  uniqueBuyers1h: null,
+});
+ok(canPropose(draftRow).ok, "PONS MOVING row enables propose");
+const draft = formatProposeDraft(draftRow);
 ok(draft.startsWith("PayBox Always Ask"), "draft title PayBox Always Ask");
 ok(draft.includes("Buy $8 of GTAAPE"), "draft sizes $8");
 ok(draft.includes("https://www.linespace.space/t/solana/"), "draft desk URL");
@@ -425,8 +461,15 @@ ok(!/Connect Wallet|wagmi|useConnect/i.test(deskSrc), "desk has no Connect Walle
 
 const barSrc = fs.readFileSync(path.join(__dirname, "..", "src", "components", "FilterBar.tsx"), "utf8");
 ok(barSrc.includes('"1h"') && barSrc.includes('"6h"') && barSrc.includes('label: "any"') && !barSrc.includes('label: "2h"'), "chips 1h | 6h | any, no 2h");
+ok(barSrc.includes('label: "Pons"') && barSrc.includes('label: "O1"') && barSrc.includes('label: "Both"') && barSrc.includes('label: "Pump"'), "FilterBar labels Pons, O1, Both, Pump");
+ok(!barSrc.includes('label: "All"'), "FilterBar has no All chip");
+ok(barSrc.includes('id: "BOTH"'), "Both chip id is BOTH");
 ok(barSrc.includes(">EARLY<") || barSrc.includes("EARLY"), "EARLY chip after WAKE");
 ok(barSrc.includes(">WAKE<") && barSrc.indexOf(">WAKE<") < barSrc.indexOf("id=\"line-early\""), "EARLY chip is after WAKE");
+
+const headerSrc = fs.readFileSync(path.join(__dirname, "..", "src", "components", "Header.tsx"), "utf8");
+ok(headerSrc.includes("Pons {pons}") && headerSrc.includes("O1 {o1}"), "Header source includes Pons and O1 counts");
+ok(!headerSrc.includes("{pump}") && !headerSrc.includes("Pump {"), "Header has no Pump count lead");
 
 const apiSrc = fs.readFileSync(path.join(__dirname, "..", "src", "app", "api", "radar", "route.ts"), "utf8");
 ok(apiSrc.includes("parseAgeGateParam"), "GET /api/radar uses parseAgeGateParam (default 6h)");

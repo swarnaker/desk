@@ -8,7 +8,7 @@ export function tickerKey(symbol?: string): string {
 }
 
 export const DEFAULT_FILTERS: Filters = {
-  pad: "ALL",
+  pad: "BOTH",
   mood: "ALL",
   liqMin: 0,
   mcapMin: 0,
@@ -26,6 +26,12 @@ export const DEFAULT_FILTERS: Filters = {
   hideRisky: false,
   stocks: false,
 };
+
+/** PUMP/PONS/O1/BASE exact. BOTH, ALL, or omitted = PONS or O1 only (not PUMP, not BASE). */
+export function padMatches(row: { pad: string }, pad?: Filters["pad"]): boolean {
+  if (pad === "PUMP" || pad === "PONS" || pad === "O1" || pad === "BASE") return row.pad === pad;
+  return row.pad === "PONS" || row.pad === "O1";
+}
 
 export function minAgeSec(gate: AgeGate | undefined): number {
   if (gate === "1h") return HOUR;
@@ -149,7 +155,7 @@ function matchRow(row: TokenRow, f: Filters, watchSet: Set<string>): boolean {
   // BOOK: hide 0 / missing 1h vol unless watched. NEW/STRETCH unchanged.
   // Pons chip: keep quiet $1M+ graduated books (isPonsMcapBook).
   if (!f.early && row.lane === "BOOK" && !((row.vol1hUsd ?? 0) > 0) && !watched(row, watchSet) && !(f.pad === "PONS" && isPonsMcapBook(row, f, watchSet))) return false;
-  if (f.pad !== "ALL" && row.pad !== f.pad) return false;
+  if (!padMatches(row, f.pad)) return false;
   if (f.liqMin && (row.liqUsd ?? 0) < f.liqMin) return false;
   if (f.mcapMin && (row.mcapUsd ?? 0) < f.mcapMin) return false;
   const age = row.ageSec ?? 0;

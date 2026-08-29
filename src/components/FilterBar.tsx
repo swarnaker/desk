@@ -1,7 +1,7 @@
 "use client";
 import { DEFAULT_FILTERS } from "@/lib/line/filters";
 import { LINE_EARLY_CHIP } from "@/lib/line/uiLabels";
-import type { AgeGate, Filters, Pad } from "@/lib/line/types";
+import type { AgeGate, Filters } from "@/lib/line/types";
 
 function Chip({ on, children, onClick }: { on: boolean; children: React.ReactNode; onClick: () => void }) {
   return (
@@ -11,10 +11,10 @@ function Chip({ on, children, onClick }: { on: boolean; children: React.ReactNod
   );
 }
 
-const PADS: { id: "ALL" | Pad; label: string }[] = [
-  { id: "ALL", label: "All" },
+const PADS: { id: "PONS" | "O1" | "BOTH" | "PUMP"; label: string }[] = [
   { id: "PONS", label: "Pons" },
   { id: "O1", label: "O1" },
+  { id: "BOTH", label: "Both" },
   { id: "PUMP", label: "Pump" },
 ];
 

@@ -32,7 +32,7 @@ export function HealthFooter({ signedIn = false }: { signedIn?: boolean }) {
   const ctx = useRadarFiltersOptional();
   const ageGate = ctx?.filters.ageGate ?? "6h";
   const curve = ctx?.filters.curve ?? false;
-  const pad = ctx?.filters.pad ?? "ALL";
+  const pad = ctx?.filters.pad ?? "BOTH";
   const early = ctx?.filters.early ?? false;
   const watch = useWatch();
   const watchedIds = watch.file.items.map((i) => i.chain + ":" + i.ca);

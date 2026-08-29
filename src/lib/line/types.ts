@@ -89,7 +89,7 @@ export type TokenRow = {
 
 
 export type Filters = {
-  pad: "ALL" | Pad;
+  pad: "BOTH" | "ALL" | Pad;
   mood: Mood;
   liqMin: LiqMin;
   mcapMin: McapMin;

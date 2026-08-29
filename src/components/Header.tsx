@@ -124,7 +124,7 @@ export function Header({ signedIn = false }: { signedIn?: boolean }) {
           <button type="submit" className="chip chip-on shrink-0 tracking-[0.14em]">Search</button>
         </form>
         <div className="font-mono text-xs tabular text-mute">
-          {pons} Pons · {o1} O1 · Watch {watch.file.items.length}
+          Pons {pons} · O1 {o1} · Watch {watch.file.items.length}
           {copiesHidden > 0 ? <span className="ml-2">{copiesHidden} same-name copies hidden</span> : null}
         </div>
         {signedIn ? (

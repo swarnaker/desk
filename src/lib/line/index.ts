@@ -11,7 +11,7 @@ export {
 export { inferStage, curveFillAllowed } from "./stage";
 export { inferLane, isOnCurve, isSurvived, isStretchException, sortLane, splitLanes, computeBirth, computeWake } from "./lane";
 export { heatScore, isMoving } from "./heat";
-export { applyFilters, DEFAULT_FILTERS, passesAgeGate, passesBondingGate, passesActivityGate, isBoostedHidden, isPonsMcapBook, isPonsMcapExtra, isEarlyPons, rowIsStretch, minAgeSec, tx1h } from "./filters";
+export { applyFilters, DEFAULT_FILTERS, padMatches, passesAgeGate, passesBondingGate, passesActivityGate, isBoostedHidden, isPonsMcapBook, isPonsMcapExtra, isEarlyPons, rowIsStretch, minAgeSec, tx1h } from "./filters";
 export { riskFromFlags, isHiddenRisky } from "./risk";
 export type { HolderRiskInput } from "./risk";
 export { formatUsd, formatAge, formatPct, shortCa, EM } from "./format";

@@ -26,7 +26,7 @@ function loadTs(rel) {
   const req = (q) => {
     if (q.startsWith("./")) {
       const name = q.replace("./", "").replace(/\.ts$/, "") + ".ts";
-      const file = ["types.ts", "lane.ts", "filters.ts", "risk.ts", "deployer.ts", "radarPath.ts", "format.ts"].find(
+      const file = ["types.ts", "lane.ts", "filters.ts", "risk.ts", "deployer.ts", "radarPath.ts", "format.ts", "propose.ts", "physics.ts"].find(
         (f) => f === name,
       );
       if (file) return loadTs(file);
@@ -42,7 +42,8 @@ const { DEFAULT_FILTERS, applyFilters, isBoostedHidden } = loadTs("filters.ts");
 const { computeWake, computeBirth, inferLane, isOnCurve, isSurvived } = loadTs("lane.ts");
 const { HOUR, DAY, WAKE_UNIQUE_BUYERS_MIN, BOOSTED_HIDE_UNIQUE_BUYERS, SERIAL_LAUNCHES_7D } = loadTs("types.ts");
 const { applyDeployerStats, isRealDeployer, deskOrganicBadge } = loadTs("deployer.ts");
-const { parseAgeGateParam } = loadTs("radarPath.ts");
+const { parseAgeGateParam, parsePadParam } = loadTs("radarPath.ts");
+const { canPropose } = loadTs("propose.ts");
 
 const fails = [];
 function ok(cond, msg) {
@@ -57,7 +58,7 @@ function row(p) {
     name: p.symbol || "RON",
     ca: p.ca || "Token111111111111111111111111111111111111111",
     chain: p.chain || "solana",
-    pad: p.pad || "PUMP",
+    pad: p.pad || "PONS",
     quote: p.quote || "SOL",
     lane: p.lane || "NEW",
     stage: p.stage || "GRADUATED",
@@ -90,7 +91,9 @@ ok(WAKE_UNIQUE_BUYERS_MIN === 15, "WAKE unique floor is 15");
 ok(BOOSTED_HIDE_UNIQUE_BUYERS === 10, "BOOSTED hide unique floor is 10");
 ok(SERIAL_LAUNCHES_7D === 3, "serial flag at 3 launches");
 ok(DEFAULT_FILTERS.ageGate === "6h" && DEFAULT_FILTERS.curve === false, "default 6h Curve off");
+ok(DEFAULT_FILTERS.pad === "BOTH", "DEFAULT_FILTERS.pad is BOTH");
 ok(parseAgeGateParam(null) === "6h", "radar age default 6h");
+ok(parsePadParam(null) === "BOTH", "parsePadParam omitted === BOTH");
 
 const wash = row({
   symbol: "WASH",
@@ -120,6 +123,7 @@ ok(computeWake(wash) === false, "$40k/h + 3 unique buyers is not WAKE");
 ok(computeWake(organic) === true, "$40k/h + 20 unique buyers can WAKE (age/vol pass)");
 ok(computeWake(missing) === false, "missing uniqueBuyers1h skips WAKE");
 ok(computeWake({ ...organic, ageSec: 8 * HOUR }) === false, "8h cannot WAKE even with 20 buyers");
+ok(computeWake({ ...organic, pad: "PUMP" }) === false, "Pump never WAKE even if vol/buyers pass");
 
 const boostedLow = row({
   symbol: "B10",
@@ -219,10 +223,14 @@ ok(computeBirth(mig8h) === true, "8h migrated Pump can BIRTH");
 ok(computeBirth(curveRaw) === false, "raw curve never BIRTH");
 const gated = applyFilters([mig8h, curveRaw, blue], DEFAULT_FILTERS);
 const gids = gated.map((r) => r.symbol);
-ok(gids.includes("MIG8"), "8h migrated Pump with volume passes default filters");
+ok(!gids.includes("MIG8"), "default Both hides 8h migrated Pump");
+ok(applyFilters([mig8h], { ...DEFAULT_FILTERS, pad: "PUMP" }).some((r) => r.symbol === "MIG8"), "Pump chip keeps 8h migrated Pump with volume");
 ok(gids.includes("BLUECHIP"), "BLUECHIP stays on default board");
 ok(!gids.includes("CURVE"), "ON_CURVE raw Pump hidden when on_curve=0");
-ok(applyFilters([curveRaw], { ...DEFAULT_FILTERS, curve: true }).some((r) => r.symbol === "CURVE"), "Curve on can show ON_CURVE");
+ok(!applyFilters([curveRaw], { ...DEFAULT_FILTERS, curve: true }).some((r) => r.symbol === "CURVE"), "Curve on still hides Pump on Both");
+ok(applyFilters([curveRaw], { ...DEFAULT_FILTERS, curve: true, pad: "PUMP" }).some((r) => r.symbol === "CURVE"), "Pump+Curve chips can show ON_CURVE");
+ok(!canPropose(mig8h).ok, "Pump desk cannot propose");
+ok(!canPropose(curveRaw).ok, "raw Pump cannot propose");
 
 const rhCash = row({
   symbol: "CASHCAT",
@@ -249,8 +257,10 @@ const pumpCash = row({
   sources: ["dex:pumpswap"],
 });
 const copies = applyFilters([rhCash, pumpCash], DEFAULT_FILTERS);
-ok(copies.some((r) => r.chain === "robinhood" && r.symbol === "CASHCAT"), "RH CASHCAT kept");
-ok(!copies.some((r) => r.chain === "solana" && r.symbol === "CASHCAT"), "Pump CASHCAT copy hidden when RH exists");
+ok(!copies.some((r) => r.chain === "robinhood" && r.symbol === "CASHCAT"), "default Both hides BASE CASHCAT");
+ok(!copies.some((r) => r.chain === "solana" && r.symbol === "CASHCAT"), "default Both hides Pump CASHCAT");
+ok(applyFilters([rhCash, pumpCash], { ...DEFAULT_FILTERS, pad: "BASE" }).some((r) => r.chain === "robinhood" && r.symbol === "CASHCAT"), "BASE pad keeps RH CASHCAT");
+ok(applyFilters([rhCash, pumpCash], { ...DEFAULT_FILTERS, pad: "PUMP" }).some((r) => r.chain === "solana" && r.symbol === "CASHCAT"), "Pump chip keeps Pump CASHCAT");
 
 ok(!isRealDeployer("0x0000000000000000000000000000000000000000"), "zero deployer is not real");
 ok(!isRealDeployer(undefined), "missing deployer is not real");
