@@ -5,6 +5,9 @@ import type { HealthSource } from "@/lib/line/types";
 import type { FactoryLaunch } from "./factory";
 import { fail } from "./http";
 
+const CATALOG_TIMEOUT_MS = 4000;
+const CATALOG_CACHE_MS = 5 * 60 * 1000;
+
 type CatalogRow = {
   factory?: string;
   token?: string;
@@ -21,6 +24,10 @@ type CatalogRow = {
   liquidityUsd?: number | null;
   graduated?: boolean;
 };
+
+type CatalogPack = { launches: FactoryLaunch[]; at: number };
+
+let lastGood: CatalogPack | null = null;
 
 function num(v: unknown): number | undefined {
   if (v == null || v === "") return undefined;
@@ -55,41 +62,90 @@ function mapCatalogItem(row: CatalogRow): FactoryLaunch | null {
   };
 }
 
+function rowsFromRaw(raw: unknown): CatalogRow[] {
+  if (Array.isArray(raw)) return raw as CatalogRow[];
+  if (raw && typeof raw === "object" && Array.isArray((raw as { data?: unknown }).data)) {
+    return (raw as { data: CatalogRow[] }).data;
+  }
+  return [];
+}
+
+function mapCatalog(arr: CatalogRow[]): FactoryLaunch[] {
+  const seen = new Set<string>();
+  const launches: FactoryLaunch[] = [];
+  for (const item of arr) {
+    const mapped = mapCatalogItem(item);
+    if (!mapped) continue;
+    const key = mapped.token.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    launches.push(mapped);
+  }
+  return launches;
+}
+
+async function fetchCatalogOnce(): Promise<FactoryLaunch[]> {
+  const res = await fetch(PONS_GRADUATED_CATALOG_URL, {
+    headers: { accept: "application/json", "user-agent": "line-radar/1.0" },
+    cache: "no-store",
+    signal: AbortSignal.timeout(CATALOG_TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const raw = (await res.json()) as unknown;
+  return mapCatalog(rowsFromRaw(raw));
+}
+
+function cachedIfFresh(): CatalogPack | null {
+  if (!lastGood || !lastGood.launches.length) return null;
+  if (Date.now() - lastGood.at >= CATALOG_CACHE_MS) return null;
+  return lastGood;
+}
+
 export async function harvestPonsGraduatedCatalog(): Promise<{ launches: FactoryLaunch[]; health: HealthSource }> {
   const name = "Pons graduated catalog";
   const t0 = Date.now();
-  try {
-    const res = await fetch(PONS_GRADUATED_CATALOG_URL, {
-      headers: { accept: "application/json", "user-agent": "line-radar/1.0" },
-      cache: "no-store",
-      signal: AbortSignal.timeout(12000),
-    });
-    const ms = Date.now() - t0;
-    if (!res.ok) {
-      return { launches: [], health: { name, ok: false, hits: 0, attempts: 1, ms, detail: "HTTP " + res.status } };
-    }
-    const raw = (await res.json()) as unknown;
-    const arr: CatalogRow[] = Array.isArray(raw)
-      ? raw as CatalogRow[]
-      : (raw && typeof raw === "object" && Array.isArray((raw as { data?: unknown }).data)
-        ? (raw as { data: CatalogRow[] }).data
-        : []);
-    const seen = new Set<string>();
-    const launches: FactoryLaunch[] = [];
-    for (const item of arr) {
-      const mapped = mapCatalogItem(item);
-      if (!mapped) continue;
-      const key = mapped.token.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      launches.push(mapped);
-    }
+  const cached = cachedIfFresh();
+  if (cached) {
     return {
-      launches,
-      health: { name, ok: true, hits: 1, attempts: 1, ms, detail: launches.length + " graduated" },
+      launches: cached.launches,
+      health: {
+        name,
+        ok: true,
+        hits: 1,
+        attempts: 1,
+        ms: Date.now() - t0,
+        detail: cached.launches.length + " graduated (cached)",
+      },
     };
-  } catch (err) {
-    return { launches: [], health: fail(name, err, t0) };
   }
+
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const launches = await fetchCatalogOnce();
+      lastGood = { launches, at: Date.now() };
+      return {
+        launches,
+        health: { name, ok: true, hits: 1, attempts: attempt, ms: Date.now() - t0, detail: launches.length + " graduated" },
+      };
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+
+  if (lastGood && lastGood.launches.length) {
+    return {
+      launches: lastGood.launches,
+      health: {
+        name,
+        ok: true,
+        hits: 1,
+        attempts: 2,
+        ms: Date.now() - t0,
+        detail: lastGood.launches.length + " graduated (last good)",
+      },
+    };
+  }
+  return { launches: [], health: fail(name, lastErr, t0, 2) };
 }
 
