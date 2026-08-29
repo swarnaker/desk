@@ -336,6 +336,18 @@ const earlyOn = applyFilters([early2h, early20h], { ...DEFAULT_FILTERS, early: t
 ok(earlyOn.some((r) => r.symbol === "EARLY2"), "early filter keeps 2h Pons GRAD with 25 buyers");
 ok(!earlyOn.some((r) => r.symbol === "OLD20"), "early filter drops a 20h Pons");
 ok(!applyFilters([early2h], DEFAULT_FILTERS, new Set()).some((r) => r.symbol === "EARLY2"), "All default still hides <6h");
+const earlyBuyers = row({
+  symbol: "EARLYB",
+  ca: "EarlyBuy11111111111111111111111111111111111",
+  pad: "PONS",
+  stage: "GRADUATED",
+  ageSec: 2 * HOUR,
+  uniqueBuyers1h: 25,
+  vol1hUsd: 2000,
+  chain: "robinhood",
+});
+ok(isEarlyPons(earlyBuyers), "2h Pons 25 buyers $2k/h isEarlyPons");
+ok(applyFilters([earlyBuyers], { ...DEFAULT_FILTERS, early: true }, new Set()).some((r) => r.symbol === "EARLYB"), "EARLY keeps 20+ buyers even under $5k/h");
 
 const laneSrc = fs.readFileSync(path.join(__dirname, "..", "src", "components", "Lane.tsx"), "utf8");
 ok(laneSrc.includes("<CopyCa ca={row.ca}"), "Lane CA cell uses CopyCa");

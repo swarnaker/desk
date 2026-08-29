@@ -67,14 +67,15 @@ export function isPonsMcapExtra(row: TokenRow, f: Filters, watchSet: Set<string>
   return false;
 }
 
-/** Exclusive EARLY chip: graduated Pons aged 1h–12h with buyers or fallback vol. */
+/** Exclusive EARLY chip: graduated Pons aged 1h–12h with 20+ buyers or $5k/h. */
 export function isEarlyPons(row: TokenRow): boolean {
   if (row.pad !== "PONS") return false;
   if (row.stage !== "GRADUATED") return false;
   if (row.ageSec == null || !Number.isFinite(row.ageSec)) return false;
   if (row.ageSec < HOUR || row.ageSec > 12 * HOUR) return false;
-  if (row.uniqueBuyers1h != null) return row.uniqueBuyers1h >= 20;
-  return (row.vol1hUsd ?? 0) >= 5000;
+  const buyersOk = row.uniqueBuyers1h != null && row.uniqueBuyers1h >= 20;
+  const volOk = (row.vol1hUsd ?? 0) >= 5000;
+  return buyersOk || volOk;
 }
 
 /** Factory-seen-before-pair: factory source and no Dex pair yet. FIRST includes these. */
@@ -142,11 +143,12 @@ function matchRow(row: TokenRow, f: Filters, watchSet: Set<string>): boolean {
     return false;
   }
   if (!passesBondingGate(row, f)) return false;
-  if (!passesActivityGate(row, watchSet) && !(f.pad === "PONS" && isPonsMcapBook(row, f, watchSet))) return false;
+  // EARLY already required buyers>=20 or $5k/h. Do not also demand the $5k All-board gate.
+  if (!f.early && !passesActivityGate(row, watchSet) && !(f.pad === "PONS" && isPonsMcapBook(row, f, watchSet))) return false;
   if (isBoostedHidden(row) && !watched(row, watchSet)) return false;
   // BOOK: hide 0 / missing 1h vol unless watched. NEW/STRETCH unchanged.
   // Pons chip: keep quiet $1M+ graduated books (isPonsMcapBook).
-  if (row.lane === "BOOK" && !((row.vol1hUsd ?? 0) > 0) && !watched(row, watchSet) && !(f.pad === "PONS" && isPonsMcapBook(row, f, watchSet))) return false;
+  if (!f.early && row.lane === "BOOK" && !((row.vol1hUsd ?? 0) > 0) && !watched(row, watchSet) && !(f.pad === "PONS" && isPonsMcapBook(row, f, watchSet))) return false;
   if (f.pad !== "ALL" && row.pad !== f.pad) return false;
   if (f.liqMin && (row.liqUsd ?? 0) < f.liqMin) return false;
   if (f.mcapMin && (row.mcapUsd ?? 0) < f.mcapMin) return false;
