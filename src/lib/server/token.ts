@@ -2,7 +2,10 @@ import { isChain, isEvmCa, isSolMint, rowId } from "@/lib/line/ca";
 import type { Chain, TokenRow } from "@/lib/line/types";
 import { candToRow, mapDexChain, type Cand } from "./classify";
 import { fetchLatestTokens, fetchTokenPairs } from "./dexscreener";
-import { applyHoldersToRow, applyNullHolders, enrichHolders } from "./holders";
+import { applyHoldersToRow, enrichHolders } from "./holders";
+import { applyMakersToRow, enrichMakers } from "./makers";
+import { computeBirth, computeWake, inferLane } from "@/lib/line/lane";
+import { isFactoryBeforePair } from "@/lib/line/filters";
 import { getSnapshot, listRadar } from "./radar";
 
 export async function getToken(chain: Chain, ca: string): Promise<TokenRow | null> {
@@ -32,7 +35,26 @@ export async function getToken(chain: Chain, ca: string): Promise<TokenRow | nul
   const out = row ?? hit ?? null;
   if (!out) return null;
   const stats = await enrichHolders(out.chain, out.ca, best);
-  return applyHoldersToRow(out, stats);
+  applyHoldersToRow(out, stats);
+  const makers = await enrichMakers(out.chain, out.ca, best);
+  applyMakersToRow(out, makers);
+  if (out.stage === "GRADUATED" || out.stage === "MOVING" || out.stage === "LIVE_POOL") {
+    out.lane = inferLane({
+      pad: out.pad,
+      stage: out.stage,
+      ageSec: out.ageSec,
+      curveFillPct: out.pad === "O1" ? undefined : out.curveFillPct,
+      printing: (out.vol1hUsd ?? 0) > 0 && (out.buyPct ?? 0) >= 50,
+      factoryOnly: isFactoryBeforePair(out),
+      vol1hUsd: out.vol1hUsd,
+      moving: out.moving,
+      padSub: out.padSub,
+      liqUsd: out.liqUsd,
+    });
+  }
+  out.birth = computeBirth(out);
+  out.wake = computeWake(out);
+  return out;
 }
 
 export async function resolveSearch(raw: string): Promise<{ chain: Chain; ca: string } | null> {

@@ -46,7 +46,7 @@ Banners (real counts): `N factory launches shown before Dex indexed a pair.` (on
 Pad PONS|O1|BASE|PUMP. Chain robinhood|base|solana. Lane NEW|STRETCH|BOOK.
 Stage FACTORY|ANTI_SNIPE|ON_CURVE|LIVE_POOL|GRADUATED|MOVING.
 Quote ETH|WETH|USDC|USDG|STOCK|SOL|UNKNOWN.
-Fields: id `${chain}:${ca}`, symbol, name, logoUrl?, ca, chain, pad, padSub?, quote, quoteCa?, lane, stage, moving, heat 0-400, risk {level, flags}, mcapUsd?, liqUsd?, vol1hUsd?, vol1hDeltaUsd?, buyPct?, buys?, sells?, ageSec?, curveFillPct? (Pons/Pump only), taxEndsAt? ISO, firstSeenAt, updatedAt, sources[], links {gmgn,dex,scan}, xHandle?, holders?, sameNameCopies?.
+Fields: id `${chain}:${ca}`, symbol, name, logoUrl?, ca, chain, pad, padSub?, quote, quoteCa?, lane, stage, moving, heat 0-400, risk {level, flags}, mcapUsd?, liqUsd?, vol1hUsd?, vol1hDeltaUsd?, buyPct?, buys?, sells?, uniqueBuyers1h?, uniqueSellers1h?, boostsActive?, ageSec?, curveFillPct? (Pons/Pump only), taxEndsAt? ISO, firstSeenAt, updatedAt, sources[], links {gmgn,dex,scan}, xHandle?, holders?, deployer?, deployerLaunchCount7d?, sameNameCopies?. uniqueBuyers1h / uniqueSellers1h / boostsActive are null when the API omits them — never invent 0.
 Columns: Token | CA | Pad | Physics | Heat | Risk | Mcap | Liq | 1h vol | Buy% | Age | Stage | Links
 Physics: Pons CURVE pct + quote + tax countdown; o1 TAX Ns then LOCKED V4; Pump BOND pct then MIGRATED; Base GRADUATED/MOVING/LIVE_POOL → LOCKED V4, otherwise pair age + liq; empty stats em-dash.
 
@@ -57,7 +57,7 @@ Threshold 4.2 ETH or per-asset USDG/stock.
 
 o1 Base 8453 + RH 4663. NOT a curve. Never ON_CURVE or curve fill. Base factory 0xa52ad458cE0282a971ecC71C051A32f28946bb9F. 1B supply, 18 dec, opening FDV ~$4k, tax 99%->1% over 16s, LP locked. Launch: if now < launchAt+16s ANTI_SNIPE TAX countdown else LIVE_POOL (survived locked v4; NEW if age<24h, BOOK if age>=24h). o1 never STRETCH via curve. Quote ETH USDC USDG STOCK.
 
-Pump Solana: Created ON_CURVE NEW; STRETCH bonding>=~70%; Migrated GRADUATED BOOK.
+Pump Solana: Created ON_CURVE NEW (hidden unless Curve on). STRETCH bonding>=~70%. MIGRATED / PumpSwap / Raydium (pump mint) = GRADUATED (physics MIGRATED), same 6h + vol1hUsd >= 5000 + BIRTH/WAKE rules as Pons/o1. Raw ON_CURVE stays hidden on the default board. Pump CASHCAT copy hidden when RH CASHCAT exists.
 
 Generic Base: only if not o1/Pons. Skip Gecko if Dex has the name.
 
@@ -72,7 +72,7 @@ Row2 age gate 1h | 2h | 6h (default) | any age; Curve (off by default — bondin
 Watch JSON v1 merge import.
 
 ## 10. Desk /t/{chain}/{ca}
-Identity pad lane stage heat risk, full CA (click copies, 1s copied hint), facts, PHYSICS panel, holders or --, deployer or --, clones, heat breakdown, prints if any, external links. Invalid CA designed empty. No swap button.
+Identity pad lane stage heat risk, desk badge ORGANIC or BOOSTED (DexScreener boosts > 0) or — if unknown, full CA (click copies, 1s copied hint), facts (including 1h unique buyers/sellers or —), PHYSICS panel, holders or —, Deployer row (CopyCa address + 7d launch count on this pad, or —; AMBER SERIAL if same deployer has >= 3 launches in 7d with mcap now < $5k). Never invent a launch count. If factory RPC / official records missing, dash and skip the flag. Clones, heat breakdown, prints if any, external links. Invalid CA designed empty. No swap button.
 
 ## 11. Tape/Whales V1 types only if needed; full UI is V2. Exclude protocol list from whales.
 
@@ -126,8 +126,10 @@ BIRTH, WAKE, sort, and same-ticker copies apply to **every** Pons, o1, and Pump 
 **BIRTH** (any token). Pill only on NEW: `isSurvived` (just-graduated Pump/Pons, or o1 live) AND age < 24h. Never BOOK. Never ON_CURVE. Never age >= 70 days. Never a raw curve name. A 7h survived name with activity is NEW and BIRTH is allowed. A 90-minute Pump still ON_CURVE is hidden unless Curve is on and is not BIRTH. A 3-minute name is not shown on the default 6h board (counted in hidden under 6h). No allow-list. o1 never uses `curveFillPct`.
 
 **WAKE** (any token, exact):
-`wake = ageSec >= 24h AND vol1hUsd != null AND vol1hUsd >= max(3 * (vol24hUsd/24), 25000)`
-Missing `vol24hUsd` → hourly baseline 0 so bar = $25k (still need $25k 1h). Dust cannot WAKE. Dead copies with ~$100/h are not WAKE. No canonical exception.
+`wake = ageSec >= 24h AND vol1hUsd != null AND vol1hUsd >= max(3 * (vol24hUsd/24), 25000) AND uniqueBuyers1h >= 15`
+Missing `vol24hUsd` → hourly baseline 0 so bar = $25k (still need $25k 1h). Missing `uniqueBuyers1h` → skip WAKE (never invent 0). Dust cannot WAKE. A wash-tape name with $40k/h and 3 unique buyers is not WAKE. Dead copies with ~$100/h are not WAKE. No canonical exception.
+Hide BOOSTED-only names when boosts are known and uniqueBuyers1h is known and < 10. If boost count is unknown, do not hide on this rule.
+GET `/api/radar` default `on_curve=0` (Curve off). `curve=1` or `on_curve=1` includes ON_CURVE.
 
 **Sort:** table is NEW, then STRETCH, then BOOK from `splitLanes`. In-lane: movers first (green movers before red), then heat desc. RED cannot outrank a green mover. When Curve is off, STRETCH is empty so a 70% Pump curve does not outrank BOOK majors on the default board. With Curve on, a 70% Pump curve (STRETCH) still renders before BOOK.
 

@@ -75,6 +75,11 @@ function row(p) {
     sources: p.sources || ["dex:pumpfun"],
     links: { gmgn: "", dex: "", scan: "" },
     padSub: p.padSub,
+    uniqueBuyers1h: p.uniqueBuyers1h,
+    uniqueSellers1h: p.uniqueSellers1h,
+    boostsActive: p.boostsActive,
+    deployer: p.deployer,
+    deployerLaunchCount7d: p.deployerLaunchCount7d,
   };
 }
 
@@ -140,6 +145,23 @@ const realWake = row({
   ageSec: 30 * HOUR,
   vol1hUsd: 50000,
   vol24hUsd: 100000,
+  uniqueBuyers1h: 20,
+  stage: "GRADUATED",
+});
+const washWake = row({
+  symbol: "WASH",
+  ca: "Wash111111111111111111111111111111111111111",
+  ageSec: 30 * HOUR,
+  vol1hUsd: 40000,
+  uniqueBuyers1h: 3,
+  stage: "GRADUATED",
+});
+const organicWake = row({
+  symbol: "ORG",
+  ca: "Org1111111111111111111111111111111111111111",
+  ageSec: 30 * HOUR,
+  vol1hUsd: 40000,
+  uniqueBuyers1h: 20,
   stage: "GRADUATED",
 });
 const curve7h = row({
@@ -178,7 +200,10 @@ ok(computeBirth(book25h) === false, "25h never BIRTH (BOOK)");
 ok(computeBirth(curve7h) === false, "raw curve never BIRTH");
 ok(computeWake(sevenH) === false, "7h cannot WAKE");
 ok(computeWake(dustWake) === false, "dust cannot WAKE");
-ok(computeWake(realWake) === true, "24h+ with vol1h >= max(3*hourly, 25k) WAKE");
+ok(computeWake(realWake) === true, "24h+ with vol1h >= max(3*hourly, 25k) and 20 unique buyers WAKE");
+ok(computeWake(washWake) === false, "$40k/h + 3 unique buyers is not WAKE");
+ok(computeWake(organicWake) === true, "$40k/h + 20 unique buyers can WAKE");
+ok(computeWake({ ...organicWake, uniqueBuyers1h: null }) === false, "missing uniqueBuyers1h skips WAKE");
 
 const watched = applyFilters([youngWatch, ron1h], DEFAULT_FILTERS, new Set([youngWatch.ca.toLowerCase()]));
 ok(watched.some((r) => r.symbol === "BABY"), "watched young/quiet still shows");

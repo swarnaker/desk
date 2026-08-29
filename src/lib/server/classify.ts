@@ -9,7 +9,7 @@ import { inferStage } from "@/lib/line/stage";
 import type { Chain, Pad, Quote, TokenRow } from "@/lib/line/types";
 import { PUMP_GRAD_MCAP } from "@/lib/line/types";
 import type { DexPair } from "./dexscreener";
-import { numOrNull, pairWebsites, pairX } from "./dexscreener";
+import { numOrNull, pairMakers, pairWebsites, pairX } from "./dexscreener";
 import type { FactoryLaunch } from "./factory";
 
 export type Cand = {
@@ -71,12 +71,27 @@ function pumpDex(pair?: DexPair): boolean {
   return d.includes("pump");
 }
 
-function pumpGraduated(pair?: DexPair): boolean {
+function isPumpMint(ca?: string): boolean {
+  return typeof ca === "string" && /pump$/i.test(ca);
+}
+
+/** PumpSwap / Raydium (pump mint) = migrated. Raw pumpfun/pump stay on-curve. */
+function pumpGraduated(pair?: DexPair, ca?: string): boolean {
   if (!pair) return false;
   const d = (pair.dexId || "").toLowerCase();
   if (d === "pumpfun" || d === "pump") return false;
   if (d === "pumpswap" || d.includes("pumpswap")) return true;
+  if (d.includes("raydium") && isPumpMint(ca || pair.baseToken?.address)) return true;
   return false;
+}
+
+function realDeployer(addr?: string): string | undefined {
+  if (!addr) return undefined;
+  const s = addr.trim();
+  if (!s) return undefined;
+  if (/^0x0+$/i.test(s)) return undefined;
+  if (/^0x[0]+$/.test(s)) return undefined;
+  return s;
 }
 
 export function classifyPad(c: Cand): Pad {
@@ -131,7 +146,7 @@ export function candToRow(c: Cand, now = Date.now()): TokenRow | null {
   const factoryOnly = !hasDex && !!c.factory && !fromO1Api && !c.factory.graduated;
   const hook = ponsHookGraduated(pair);
   const v1 = ponsV1Locked(pair, pad);
-  const pumpMig = pad === "PUMP" && pumpGraduated(pair);
+  const pumpMig = pad === "PUMP" && pumpGraduated(pair, c.ca);
   const graduated = hook || pumpMig || (pad === "O1" && hasDex) || !!c.factory?.graduated;
   const launchAt = c.factory?.timestampMs ?? (pair?.pairCreatedAt != null ? numOrNull(pair.pairCreatedAt) : undefined);
   const created = c.factory?.timestampMs ?? (pair?.pairCreatedAt != null ? numOrNull(pair.pairCreatedAt) : undefined) ?? launchAt;
@@ -197,6 +212,7 @@ export function candToRow(c: Cand, now = Date.now()): TokenRow | null {
   const chainMeta = CHAINS[c.chain];
   const firstSeen = launchAt ?? created ?? now;
   const sources = [...c.sources];
+  const makers = pairMakers(pair);
   return {
     id: rowId(c.chain, c.ca),
     symbol,
@@ -232,7 +248,12 @@ export function candToRow(c: Cand, now = Date.now()): TokenRow | null {
       scan: chainMeta.explorer + c.ca,
     },
     xHandle: pair ? pairX(pair) : undefined,
-    deployer: c.factory?.deployer,
+    deployer: realDeployer(c.factory?.deployer),
+    uniqueBuyers1h: makers.uniqueBuyers1h,
+    uniqueSellers1h: makers.uniqueSellers1h,
+    boostsActive: makers.boostsActive,
+    deployerLaunchCount7d: null,
+    serialAmber: false,
     canonical: isCanonical(c.chain, c.ca),
   };
 }

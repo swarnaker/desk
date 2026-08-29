@@ -19,8 +19,9 @@ const PADS: { id: "ALL" | Pad; label: string }[] = [
 
 const AGES: { id: AgeGate; label: string }[] = [
   { id: "1h", label: "1h" },
+  { id: "2h", label: "2h" },
   { id: "6h", label: "6h" },
-  { id: "any", label: "any" },
+  { id: "any", label: "any age" },
 ];
 
 export function FilterBar({

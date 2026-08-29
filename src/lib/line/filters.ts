@@ -1,4 +1,4 @@
-import { ACTIVITY_VOL1H_USD, FIRST_WINDOW_SEC, HOUR, type AgeGate, type Filters, type TokenRow } from "./types";
+import { ACTIVITY_VOL1H_USD, BOOSTED_HIDE_UNIQUE_BUYERS, FIRST_WINDOW_SEC, HOUR, type AgeGate, type Filters, type TokenRow } from "./types";
 import { isOnCurve, isStretchException, isSurvived } from "./lane";
 import { isHiddenRisky } from "./risk";
 
@@ -98,10 +98,19 @@ export function applyFilters(
   return dropUnwatchedCopies(rows.filter((row) => matchRow(row, f, watchSet)), watchSet);
 }
 
+/** BOOSTED-only hide: known boosts > 0 AND known uniqueBuyers1h < 10. Unknown boosts: do not hide. */
+export function isBoostedHidden(row: TokenRow): boolean {
+  if (row.boostsActive == null) return false;
+  if (row.boostsActive <= 0) return false;
+  if (row.uniqueBuyers1h == null) return false;
+  return row.uniqueBuyers1h < BOOSTED_HIDE_UNIQUE_BUYERS;
+}
+
 function matchRow(row: TokenRow, f: Filters, watchSet: Set<string>): boolean {
   if (!passesAgeGate(row, f, watchSet)) return false;
   if (!passesBondingGate(row, f)) return false;
   if (!passesActivityGate(row, watchSet)) return false;
+  if (isBoostedHidden(row) && !watched(row, watchSet)) return false;
   // BOOK: hide 0 / missing 1h vol unless watched. NEW/STRETCH unchanged.
   if (row.lane === "BOOK" && !(row.vol1hUsd > 0) && !watched(row, watchSet)) return false;
   if (f.pad !== "ALL" && row.pad !== f.pad) return false;

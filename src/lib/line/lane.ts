@@ -1,4 +1,4 @@
-import { DAY, HOUR, STRETCH_FILL, type Lane, type Pad, type Stage, type TokenRow } from "./types";
+import { DAY, HOUR, STRETCH_FILL, WAKE_UNIQUE_BUYERS_MIN, type Lane, type Pad, type Stage, type TokenRow } from "./types";
 
 /** PONS/PUMP still on the bonding curve. o1 is never on-curve. */
 export function isOnCurve(row: { pad: Pad; stage: Stage }): boolean {
@@ -109,18 +109,22 @@ export function computeBirth(row: {
   return true;
 }
 
-/** WAKE = age >= 24h AND vol1hUsd >= max(3*(vol24hUsd/24), 25000). Dust cannot WAKE. */
+/** WAKE = age >= 24h AND vol1hUsd >= max(3*(vol24hUsd/24), 25000) AND uniqueBuyers1h >= 15.
+ *  Missing uniqueBuyers1h → skip WAKE (never invent 0). Dust cannot WAKE. */
 export function computeWake(row: {
   ageSec?: number;
   vol1hUsd?: number;
   vol24hUsd?: number;
+  uniqueBuyers1h?: number | null;
 }): boolean {
   if (row.ageSec == null || row.ageSec < DAY) return false;
   if (row.vol1hUsd == null) return false;
   const vol24 = row.vol24hUsd;
   const hourly = vol24 != null && vol24 > 0 ? vol24 / 24 : 0;
   const bar = Math.max(3 * hourly, WAKE_VOL_FLOOR);
-  return row.vol1hUsd >= bar;
+  if (row.vol1hUsd < bar) return false;
+  if (row.uniqueBuyers1h == null || row.uniqueBuyers1h < WAKE_UNIQUE_BUYERS_MIN) return false;
+  return true;
 }
 
 /** Movers first, then heat desc. RED cannot outrank a green mover. */

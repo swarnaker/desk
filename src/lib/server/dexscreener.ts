@@ -1,7 +1,7 @@
 import type { HealthSource } from "@/lib/line/types";
 import { fail } from "./http";
 
-export type DexTxn = { buys?: number; sells?: number };
+export type DexTxn = { buys?: number; sells?: number; buyers?: number; sellers?: number; makers?: number };
 export type DexPair = {
   chainId?: string;
   dexId?: string;
@@ -17,12 +17,33 @@ export type DexPair = {
   fdv?: number;
   marketCap?: number;
   pairCreatedAt?: number;
+  makers?: number;
+  boosts?: { active?: number } | number;
   info?: {
     imageUrl?: string;
     websites?: Array<{ url?: string; label?: string } | string>;
     socials?: Array<{ url?: string; type?: string } | string>;
   };
 };
+
+/** Unique makers / boosts from a Dex pair. Missing fields stay null — never invent 0. */
+export function pairMakers(pair?: DexPair | null): {
+  uniqueBuyers1h: number | null;
+  uniqueSellers1h: number | null;
+  boostsActive: number | null;
+} {
+  if (!pair) return { uniqueBuyers1h: null, uniqueSellers1h: null, boostsActive: null };
+  const h1 = pair.txns?.h1;
+  const buyers = numOrNull(h1?.buyers) ?? numOrNull(h1?.makers);
+  const sellers = numOrNull(h1?.sellers);
+  const boostRaw = typeof pair.boosts === "number" ? pair.boosts : pair.boosts?.active;
+  const boostsActive = numOrNull(boostRaw);
+  return {
+    uniqueBuyers1h: buyers ?? null,
+    uniqueSellers1h: sellers ?? null,
+    boostsActive: boostsActive ?? null,
+  };
+}
 
 function dsBase(): string {
   return (process.env.DEXSCREENER_BASE_URL || "https://api.dexscreener.com").replace(/\/$/, "");

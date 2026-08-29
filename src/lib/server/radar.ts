@@ -3,6 +3,7 @@ import path from "path";
 import { isProtocol, isQuoteAddr } from "@/lib/line/constants";
 import { isEvmCa, rowId } from "@/lib/line/ca";
 import { canonicalAddresses, canonicalTicker, isCanonical } from "@/lib/line/canonical";
+import { applyDeployerStats } from "@/lib/line/deployer";
 import { applyFilters, DEFAULT_FILTERS, isFactoryBeforePair, minAgeSec, rowIsStretch, tickerKey } from "@/lib/line/filters";
 import { heatScore } from "@/lib/line/heat";
 import { computeBirth, computeWake, inferLane, isSurvived } from "@/lib/line/lane";
@@ -13,6 +14,7 @@ import { HOUR } from "@/lib/line/types";
 import { candToRow, mapDexChain, type Cand } from "./classify";
 import { fetchDexSearch, fetchTokensV1, fetchTokensV1Batched, type DexPair } from "./dexscreener";
 import { applyHoldersToRow, applyNullHolders, peekHolders } from "./holders";
+import { applyMakersToRow, applyNullMakers, peekMakers } from "./makers";
 import { harvestO1Factory, harvestPonsFactoryV1, harvestPonsFactoryV2, type FactoryLaunch } from "./factory";
 import { fetchGeckoBaseNew } from "./gecko";
 import { fetchO1LaunchApi } from "./o1";
@@ -20,7 +22,7 @@ import { harvestPonsGraduatedCatalog } from "./pons";
 
 const SNAP = path.join(process.cwd(), "data", "radar-snapshot.json");
 // Do NOT Dex-search pons / o1 / robinhood — those queries return pad tokens and leftovers.
-const SEARCHES = ["pumpfun", "cashcat", "basecat"] as const;
+const SEARCHES = ["pumpfun", "pumpswap", "cashcat", "basecat"] as const;
 
 function loadSnapshot(): RadarPayload | null {
   try {
@@ -49,7 +51,7 @@ function addPair(map: Map<string, Cand>, pair: DexPair, source: string, searchQ?
   if (isProtocol(addr)) return;
   if (isQuoteAddr(addr, pair.baseToken?.symbol)) return;
   // cashcat/basecat: do not apply pad-chain filters; Dex may return any chain.
-  if (searchQ === "pumpfun" && chain !== "solana") return;
+  if ((searchQ === "pumpfun" || searchQ === "pumpswap") && chain !== "solana") return;
   const key = rowId(chain, addr);
   const ex = map.get(key);
   if (ex) {
@@ -363,6 +365,9 @@ export async function listRadar(opts?: RadarListOpts): Promise<RadarPayload> {
     const cached = peekHolders(t.chain, t.ca);
     if (cached) applyHoldersToRow(t, cached);
     else applyNullHolders(t);
+    const mk = peekMakers(t.chain, t.ca);
+    if (mk) applyMakersToRow(t, mk);
+    else applyNullMakers(t);
   }
   sameNameCopies(tokens);
   for (const t of tokens) {
@@ -409,6 +414,7 @@ export async function listRadar(opts?: RadarListOpts): Promise<RadarPayload> {
   tokens = hiddenCopies.rows;
   const sameNameCopiesHidden = hiddenCopies.hidden;
 
+  applyDeployerStats(tokens);
   for (const t of tokens) {
     t.birth = computeBirth(t);
     t.wake = computeWake(t);

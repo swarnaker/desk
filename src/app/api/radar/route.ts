@@ -10,10 +10,10 @@ export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
     const ageGate = parseAgeGateParam(url.searchParams.get("age"));
-    const curve = url.searchParams.get("curve") === "1";
+    const curve = url.searchParams.get("curve") === "1" || url.searchParams.get("on_curve") === "1";
     const watched = parseWatchedQuery(url.searchParams.get("watched"));
     const data = await listRadar({ ageGate, curve, watched });
-    return NextResponse.json({ ...data, health: attachTelegramHealth(data.health) });
+    return NextResponse.json({ ...data, on_curve: curve ? 1 : 0, health: attachTelegramHealth(data.health) });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     const health = attachTelegramHealth({
@@ -28,6 +28,7 @@ export async function GET(req: Request) {
         lastSuccessAt: null,
         fetchedAt: new Date().toISOString(),
         banners: { factoryBeforeDex: 0, mergedFromSnapshot: 0, staleAgoSec: null, sameNameCopiesHidden: 0, hiddenUnderAge: 0 },
+        on_curve: 0,
         health,
       },
       { status: 200 },

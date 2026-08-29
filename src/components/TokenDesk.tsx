@@ -1,4 +1,5 @@
 "use client";
+import { deskOrganicBadge, isRealDeployer } from "@/lib/line/deployer";
 import { EM, formatAge, formatPct, formatUsd, shortCa } from "@/lib/line/format";
 import { physicsBits } from "@/lib/line/physics";
 import { isChain, isEvmCa, isSolMint } from "@/lib/line/ca";
@@ -59,7 +60,7 @@ export function TokenDesk() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3 border border-hairline bg-surface p-4">
         <div>
-          <div className="text-[11px] tracking-[0.2em] text-gold">{t.pad} · {t.lane} · {t.stage}</div>
+          <div className="text-[11px] tracking-[0.2em] text-gold">{t.pad} · {t.lane} · {t.stage} · {deskOrganicBadge(t.boostsActive) || EM}</div>
           <h1 className="text-xl text-ink">{t.symbol} <span className="text-mute">{t.name}</span></h1>
           <div className="mt-1 break-all font-mono text-[11px] text-mute"><CopyCa ca={t.ca} display={t.ca} className="break-all font-mono text-[11px] text-mute" /></div>
         </div>
@@ -76,6 +77,8 @@ export function TokenDesk() {
           <KV k="Liq" v={formatUsd(t.liqUsd)} />
           <KV k="1h vol" v={formatUsd(t.vol1hUsd)} />
           <KV k="Buy%" v={formatPct(t.buyPct)} />
+          <KV k="1h buyers" v={t.uniqueBuyers1h != null ? String(t.uniqueBuyers1h) : EM} />
+          <KV k="1h sellers" v={t.uniqueSellers1h != null ? String(t.uniqueSellers1h) : EM} />
           <KV k="Age" v={formatAge(t.ageSec)} />
           <KV k="Quote" v={t.quote} />
           <KV k="Chain" v={t.chain} />
@@ -95,10 +98,23 @@ export function TokenDesk() {
           <KV k="Dev" v={formatPct(t.devPct)} />
           <KV k="Bundle" v={formatPct(t.bundlePct)} />
           <KV k="Sniper" v={formatPct(t.sniperPct)} />
-          <KV k="Deployer" v={t.deployer ? shortCa(t.deployer) : EM} />
           <KV k="Clones" v={t.sameNameCopies != null ? String(t.sameNameCopies) : EM} />
         </Panel>
       </div>
+      <Panel title="DEPLOYER">
+        {isRealDeployer(t.deployer) ? (
+          <>
+            <div className="flex justify-between gap-3 border-b border-hairline/60 py-1 font-mono text-[12px] tabular">
+              <span className="text-mute">Address</span>
+              <CopyCa ca={t.deployer} display={t.deployer} className="break-all font-mono text-[12px]" />
+            </div>
+            <KV k={"7d on " + t.pad} v={t.deployerLaunchCount7d != null ? String(t.deployerLaunchCount7d) : EM} />
+            {t.serialAmber ? <div className="mt-1 text-[11px] tracking-wide text-gold">AMBER SERIAL</div> : null}
+          </>
+        ) : (
+          <KV k="Deployer" v={EM} />
+        )}
+      </Panel>
       {clones.length > 0 ? (
         <Panel title="CLONES">
           <div className="space-y-1 font-mono text-[12px] tabular">

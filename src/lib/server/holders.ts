@@ -12,6 +12,8 @@ export type HolderEnrich = {
   sniperPct: number | null;
   mintAuth: boolean | null;
   honeypot: boolean | null;
+  deployer: string | null;
+  launchpadMigrated: boolean | null;
   sources: string[];
 };
 
@@ -23,6 +25,8 @@ const EMPTY: HolderEnrich = {
   sniperPct: null,
   mintAuth: null,
   honeypot: null,
+  deployer: null,
+  launchpadMigrated: null,
   sources: [],
 };
 
@@ -145,6 +149,16 @@ function takeGecko(data: unknown): Partial<HolderEnrich> {
   if (mint != null) out.mintAuth = mint;
   const hp = honeypotOn(attrs.is_honeypot);
   if (hp != null) out.honeypot = hp;
+  const devAddr = attrs.developer_address;
+  if (typeof devAddr === "string" && devAddr.trim().length >= 20 && !/^0x0+$/i.test(devAddr.trim())) {
+    out.deployer = devAddr.trim();
+  }
+  const lp = attrs.launchpad_details;
+  if (lp && typeof lp === "object") {
+    const done = (lp as { completed?: unknown }).completed;
+    if (done === true) out.launchpadMigrated = true;
+    else if (done === false) out.launchpadMigrated = false;
+  }
   return out;
 }
 
@@ -158,7 +172,7 @@ function takeBlockscout(data: unknown): Partial<HolderEnrich> {
 function merge(into: HolderEnrich, part: Partial<HolderEnrich>, source: string): void {
   if (!part || !Object.keys(part).length) return;
   let used = false;
-  for (const k of ["holders", "top10Pct", "devPct", "bundlePct", "sniperPct", "mintAuth", "honeypot"] as const) {
+  for (const k of ["holders", "top10Pct", "devPct", "bundlePct", "sniperPct", "mintAuth", "honeypot", "deployer", "launchpadMigrated"] as const) {
     if (part[k] != null && into[k] == null) {
       (into as unknown as Record<string, unknown>)[k] = part[k];
       used = true;
@@ -235,6 +249,10 @@ export function applyHoldersToRow(row: TokenRow, h: HolderEnrich): TokenRow {
   row.bundlePct = h.bundlePct;
   row.sniperPct = h.sniperPct;
   row.mintAuth = h.mintAuth;
+  if (!row.deployer && h.deployer) row.deployer = h.deployer;
+  if (h.launchpadMigrated === true && row.pad === "PUMP" && row.stage === "ON_CURVE") {
+    row.stage = "GRADUATED";
+  }
   const flags = (row.risk?.flags || []).filter((f) => f !== "UNCHECKED" && f !== "THIN LP" && f !== "UNK" && f !== "TOP10" && f !== "BUNDLE");
   if (h.honeypot === true && !flags.some((f) => f.toUpperCase() === "HONEYPOT")) flags.push("HONEYPOT");
   row.risk = riskFromFlags(flags, row.liqUsd, row.mcapUsd, {

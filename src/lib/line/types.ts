@@ -75,6 +75,11 @@ export type TokenRow = {
   mintAuth?: boolean | null;
   sameNameCopies?: number;
   deployer?: string;
+  deployerLaunchCount7d?: number | null;
+  serialAmber?: boolean;
+  uniqueBuyers1h?: number | null;
+  uniqueSellers1h?: number | null;
+  boostsActive?: number | null;
   birth?: boolean;
   wake?: boolean;
   canonical?: boolean;
@@ -158,6 +163,8 @@ export type RadarPayload = {
   lastSuccessAt: string | null;
   fetchedAt: string;
   banners: RadarBanners;
+  /** 0 = default survived board (Curve off). 1 = include ON_CURVE. */
+  on_curve?: 0 | 1;
   health: {
     sources: HealthSource[];
     hits: number;
@@ -197,3 +204,11 @@ export const EXTREME_THIN_LP_USD = 200;
 /** Far below $5k with a market → THIN LP (AMBER). */
 export const MARKET_THIN_LP_USD = 5000;
 export const DESK_PADS: Pad[] = ["PONS", "O1"];
+/** WAKE extra: uniqueBuyers1h >= 15, else skip WAKE. Missing = skip, never invent 0. */
+export const WAKE_UNIQUE_BUYERS_MIN = 15;
+/** Hide BOOSTED names when uniqueBuyers1h is known and < 10. Unknown boosts: do not hide. */
+export const BOOSTED_HIDE_UNIQUE_BUYERS = 10;
+/** AMBER SERIAL: same deployer, this pad, >= 3 launches in 7d with mcap now < $5k. */
+export const SERIAL_LAUNCHES_7D = 3;
+export const SERIAL_MCAP_USD = 5000;
+export const WEEK_SEC = 7 * DAY;
