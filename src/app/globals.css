@@ -54,6 +54,14 @@ body {
 .radar-table th:nth-child(13), .radar-table td:nth-child(13) { width: 88px; }
 .radar-table th:nth-child(14), .radar-table td:nth-child(14) { width: 110px; }
 
+/* Mobile responsive */
+@media (max-width: 640px) {
+  .radar-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }

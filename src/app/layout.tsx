@@ -9,6 +9,21 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "LINE",
   description: "Signal-only launchpad radar for Pons, o1, Base, and Pump.",
+  manifest: "/manifest.json",
+  themeColor: "#07080B",
+  appleWebApp: {
+    capable: true,
+    title: "LINE",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    apple: "/icon-180.png",
+  },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 5,
+  },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
