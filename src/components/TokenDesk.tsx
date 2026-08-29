@@ -82,8 +82,8 @@ export function TokenDesk() {
           <KV k="Liq" v={formatUsd(t.liqUsd)} />
           <KV k="1h vol" v={formatUsd(t.vol1hUsd)} />
           <KV k="Buy%" v={formatPct(t.buyPct)} />
-          <KV k="1h buyers" v={t.uniqueBuyers1h != null ? String(t.uniqueBuyers1h) : EM} />
-          <KV k="1h sellers" v={t.uniqueSellers1h != null ? String(t.uniqueSellers1h) : EM} />
+          <KV k="1h buyers" v={t.uniqueBuyers1h != null ? String(t.uniqueBuyers1h) : "na"} />
+          <KV k="1h sellers" v={t.uniqueSellers1h != null ? String(t.uniqueSellers1h) : "na"} />
           <KV k="Age" v={formatAge(t.ageSec)} />
           <KV k="Quote" v={t.quote} />
           <KV k="Chain" v={t.chain} />
@@ -99,7 +99,7 @@ export function TokenDesk() {
           <KV k="Risk" v={t.risk.level} />
           <KV k="Flags" v={t.risk.flags.length ? t.risk.flags.join(", ") : EM} />
           <KV k="Holders" v={t.holders != null ? t.holders.toLocaleString("en-US") : EM} />
-          <KV k="Top10" v={formatPct(t.top10Pct)} />
+          <KV k="Top10" v={t.top10Pct != null ? formatPct(t.top10Pct) : "na"} />
           <KV k="Dev" v={formatPct(t.devPct)} />
           <KV k="Bundle" v={formatPct(t.bundlePct)} />
           <KV k="Sniper" v={formatPct(t.sniperPct)} />

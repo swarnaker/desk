@@ -1,7 +1,7 @@
 import { rowId } from "@/lib/line/ca";
 import type { Chain, TokenRow } from "@/lib/line/types";
 import { riskFromFlags } from "@/lib/line/risk";
-import type { DexPair } from "./dexscreener";
+import { pairStats, type DexPair } from "./dexscreener";
 
 /** Holder / concentration stats. Missing source → null, never a fabricated 0. */
 export type HolderEnrich = {
@@ -126,7 +126,11 @@ function takeDex(pair?: DexPair | null): Partial<HolderEnrich> {
   };
   const raw = rec.holders ?? rec.holderCount ?? rec.holdersCount ?? rec.info?.holders ?? rec.info?.holderCount;
   const holders = finiteNum(raw);
-  return holders != null ? { holders } : {};
+  const top10Pct = pairStats(pair).top10Pct;
+  const out: Partial<HolderEnrich> = {};
+  if (holders != null) out.holders = holders;
+  if (top10Pct != null) out.top10Pct = top10Pct;
+  return out;
 }
 
 function takeGecko(data: unknown): Partial<HolderEnrich> {
@@ -243,12 +247,12 @@ export async function enrichHolders(chain: Chain, ca: string, pair?: DexPair | n
 }
 
 export function applyHoldersToRow(row: TokenRow, h: HolderEnrich): TokenRow {
-  row.holders = h.holders;
-  row.top10Pct = h.top10Pct;
-  row.devPct = h.devPct;
-  row.bundlePct = h.bundlePct;
-  row.sniperPct = h.sniperPct;
-  row.mintAuth = h.mintAuth;
+  if (h.holders != null) row.holders = h.holders;
+  if (h.top10Pct != null) row.top10Pct = h.top10Pct;
+  if (h.devPct != null) row.devPct = h.devPct;
+  if (h.bundlePct != null) row.bundlePct = h.bundlePct;
+  if (h.sniperPct != null) row.sniperPct = h.sniperPct;
+  if (h.mintAuth != null) row.mintAuth = h.mintAuth;
   if (!row.deployer && h.deployer) row.deployer = h.deployer;
   if (h.launchpadMigrated === true && row.pad === "PUMP" && row.stage === "ON_CURVE") {
     row.stage = "GRADUATED";
@@ -256,9 +260,9 @@ export function applyHoldersToRow(row: TokenRow, h: HolderEnrich): TokenRow {
   const flags = (row.risk?.flags || []).filter((f) => f !== "UNCHECKED" && f !== "THIN LP" && f !== "UNK" && f !== "TOP10" && f !== "BUNDLE");
   if (h.honeypot === true && !flags.some((f) => f.toUpperCase() === "HONEYPOT")) flags.push("HONEYPOT");
   row.risk = riskFromFlags(flags, row.liqUsd, row.mcapUsd, {
-    top10Pct: h.top10Pct,
-    bundlePct: h.bundlePct,
-    mintAuth: h.mintAuth,
+    top10Pct: row.top10Pct,
+    bundlePct: row.bundlePct,
+    mintAuth: row.mintAuth,
   });
   for (const s of h.sources) {
     if (!row.sources.includes(s)) row.sources.push(s);

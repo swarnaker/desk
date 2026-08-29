@@ -162,7 +162,7 @@ function matchRow(row: TokenRow, f: Filters, watchSet: Set<string>): boolean {
   if (f.hideRisky && isHiddenRisky(row)) return false;
   if (f.watchOnly && !watched(row, watchSet)) return false;
   if (f.firstOnly && age > FIRST_WINDOW_SEC && !isFactoryBeforePair(row)) return false;
-  if (f.birthOnly || f.wakeOnly) {
+  if (!f.early && (f.birthOnly || f.wakeOnly)) {
     const birthOk = f.birthOnly && !!row.birth;
     const wakeOk = f.wakeOnly && !!row.wake;
     if (!birthOk && !wakeOk) return false;

@@ -375,6 +375,20 @@ const earlyBuyers = row({
 });
 ok(isEarlyPons(earlyBuyers), "2h Pons 25 buyers $2k/h isEarlyPons");
 ok(applyFilters([earlyBuyers], { ...DEFAULT_FILTERS, early: true }, new Set()).some((r) => r.symbol === "EARLYB"), "EARLY keeps 20+ buyers even under $5k/h");
+ok(applyFilters([early2h], { ...DEFAULT_FILTERS, early: true, wakeOnly: true }, new Set()).some((r) => r.symbol === "EARLY2"), "EARLY wins when WAKE also on");
+
+const dexSrc = fs.readFileSync(path.join(__dirname, "..", "src", "lib", "server", "dexscreener.ts"), "utf8");
+ok(dexSrc.includes("export function pairStats"), "dexscreener exports pairStats");
+ok(dexSrc.includes("h1?.buyers"), "pairStats/pairMakers read h1?.buyers");
+ok(!/h1\?\.buys\b/.test(dexSrc), "pairStats does not map h1?.buys to uniqueBuyers");
+const pairStatsFn = dexSrc.slice(dexSrc.indexOf("export function pairStats"), dexSrc.indexOf("export function pairMakers"));
+ok(pairStatsFn.includes("h1?.buyers") && pairStatsFn.includes("h1?.sellers"), "pairStats reads buyers and sellers");
+ok(!/uniqueBuyers1h[\s\S]{0,120}h1\?\.buys\b/.test(pairStatsFn), "pairStats uniqueBuyers is not h1?.buys");
+ok(dexSrc.includes("pairStats(pair)"), "pairMakers wraps pairStats");
+
+const holdSrc = fs.readFileSync(path.join(__dirname, "..", "src", "lib", "server", "holders.ts"), "utf8");
+const applyHoldersFn = holdSrc.slice(holdSrc.indexOf("export function applyHoldersToRow"), holdSrc.indexOf("export function applyNullHolders"));
+ok(/if\s*\(\s*h\.top10Pct\s*!=\s*null\s*\)/.test(applyHoldersFn), "applyHoldersToRow does not blindly assign null top10");
 
 const laneSrc = fs.readFileSync(path.join(__dirname, "..", "src", "components", "Lane.tsx"), "utf8");
 ok(laneSrc.includes("top10Known") || laneSrc.includes("top10Pct"), "radar RISK uses top10 when known");

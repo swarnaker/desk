@@ -26,22 +26,42 @@ export type DexPair = {
   };
 };
 
+export type PairStats = {
+  uniqueBuyers1h: number | null;
+  uniqueSellers1h: number | null;
+  top10Pct: number | null;
+  boostsActive: number | null;
+};
+
+/** Unique buyers/sellers/top10/boosts from a Dex pair. Missing fields stay null — never invent 0. */
+export function pairStats(pair?: DexPair | null): PairStats {
+  if (!pair) return { uniqueBuyers1h: null, uniqueSellers1h: null, top10Pct: null, boostsActive: null };
+  const h1 = pair.txns?.h1;
+  // Unique counts only: txns.h1.buyers / txns.h1.sellers. Never map buys/sells/makers.
+  const uniqueBuyers1h = numOrNull(h1?.buyers) ?? null;
+  const uniqueSellers1h = numOrNull(h1?.sellers) ?? null;
+  const rec = pair as DexPair & {
+    top10Pct?: unknown;
+    holders?: { top10Pct?: unknown; top10?: unknown };
+  };
+  const top10Pct =
+    numOrNull(rec.top10Pct) ?? numOrNull(rec.holders?.top10Pct) ?? numOrNull(rec.holders?.top10) ?? null;
+  const boostRaw = typeof pair.boosts === "number" ? pair.boosts : pair.boosts?.active;
+  const boostsActive = numOrNull(boostRaw) ?? null;
+  return { uniqueBuyers1h, uniqueSellers1h, top10Pct, boostsActive };
+}
+
 /** Unique makers / boosts from a Dex pair. Missing fields stay null — never invent 0. */
 export function pairMakers(pair?: DexPair | null): {
   uniqueBuyers1h: number | null;
   uniqueSellers1h: number | null;
   boostsActive: number | null;
 } {
-  if (!pair) return { uniqueBuyers1h: null, uniqueSellers1h: null, boostsActive: null };
-  const h1 = pair.txns?.h1;
-  const buyers = numOrNull(h1?.buyers) ?? numOrNull(h1?.makers);
-  const sellers = numOrNull(h1?.sellers);
-  const boostRaw = typeof pair.boosts === "number" ? pair.boosts : pair.boosts?.active;
-  const boostsActive = numOrNull(boostRaw);
+  const s = pairStats(pair);
   return {
-    uniqueBuyers1h: buyers ?? null,
-    uniqueSellers1h: sellers ?? null,
-    boostsActive: boostsActive ?? null,
+    uniqueBuyers1h: s.uniqueBuyers1h,
+    uniqueSellers1h: s.uniqueSellers1h,
+    boostsActive: s.boostsActive,
   };
 }
 

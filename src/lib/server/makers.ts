@@ -77,23 +77,66 @@ function takeDex(pair?: DexPair | null): Partial<MakerEnrich> {
   return out;
 }
 
-function takeGeckoPools(data: unknown): Partial<MakerEnrich> {
-  if (!data || typeof data !== "object") return {};
-  const root = data as { data?: Array<{ attributes?: { transactions?: { h1?: { buyers?: unknown; sellers?: unknown } } } }> };
-  const rows = Array.isArray(root.data) ? root.data : [];
-  for (const row of rows) {
+type GeckoH1 = { buyers?: unknown; sellers?: unknown; buys?: unknown; sells?: unknown };
+type GeckoPoolRow = {
+  id?: string;
+  attributes?: {
+    address?: string;
+    reserve_in_usd?: unknown;
+    transactions?: { h1?: GeckoH1 };
+  };
+};
+
+function geckoPoolRows(data: unknown): GeckoPoolRow[] {
+  if (!data || typeof data !== "object") return [];
+  const root = data as { data?: unknown };
+  if (Array.isArray(root.data)) return root.data as GeckoPoolRow[];
+  if (root.data && typeof root.data === "object") return [root.data as GeckoPoolRow];
+  return [];
+}
+
+function geckoPoolAddr(row: GeckoPoolRow): string {
+  const a = (row.attributes?.address || "").toLowerCase();
+  if (a) return a;
+  const id = (row.id || "").toLowerCase();
+  const i = id.lastIndexOf("_");
+  return i >= 0 ? id.slice(i + 1) : id;
+}
+
+function takeGeckoPools(data: unknown, pairAddress?: string | null): Partial<MakerEnrich> {
+  const want = (pairAddress || "").toLowerCase();
+  type Scored = { buyers: number | null; sellers: number | null; reserve: number; match: boolean };
+  const scored: Scored[] = [];
+  for (const row of geckoPoolRows(data)) {
     const h1 = row.attributes?.transactions?.h1;
-    if (!h1) continue;
-    const buyers = finiteNum(h1.buyers);
-    const sellers = finiteNum(h1.sellers);
-    if (buyers != null || sellers != null) {
-      const out: Partial<MakerEnrich> = {};
-      if (buyers != null) out.uniqueBuyers1h = buyers;
-      if (sellers != null) out.uniqueSellers1h = sellers;
-      return out;
-    }
+    if (!h1 || typeof h1 !== "object") continue;
+    const hasBuyers = Object.prototype.hasOwnProperty.call(h1, "buyers");
+    const hasSellers = Object.prototype.hasOwnProperty.call(h1, "sellers");
+    if (!hasBuyers && !hasSellers) continue;
+    const buyers = hasBuyers ? finiteNum(h1.buyers) : null;
+    const sellers = hasSellers ? finiteNum(h1.sellers) : null;
+    if (buyers == null && sellers == null) continue;
+    const buys = finiteNum(h1.buys) ?? 0;
+    const sells = finiteNum(h1.sells) ?? 0;
+    const txns = buys + sells;
+    // Dead pool: buyers:0 and buys+sells=0 is not a real unique count — do not invent 0.
+    const useBuyers = buyers != null && !(buyers === 0 && txns === 0);
+    const useSellers = sellers != null && !(sellers === 0 && txns === 0);
+    if (!useBuyers && !useSellers) continue;
+    scored.push({
+      buyers: useBuyers ? buyers : null,
+      sellers: useSellers ? sellers : null,
+      reserve: finiteNum(row.attributes?.reserve_in_usd) ?? 0,
+      match: !!want && geckoPoolAddr(row) === want,
+    });
   }
-  return {};
+  if (!scored.length) return {};
+  const matched = want ? scored.filter((s) => s.match) : [];
+  const pick = (matched.length ? matched : scored).slice().sort((a, b) => b.reserve - a.reserve)[0];
+  const out: Partial<MakerEnrich> = {};
+  if (pick.buyers != null) out.uniqueBuyers1h = pick.buyers;
+  if (pick.sellers != null) out.uniqueSellers1h = pick.sellers;
+  return out;
 }
 
 function merge(into: MakerEnrich, part: Partial<MakerEnrich>, source: string): void {
@@ -113,12 +156,24 @@ async function fetchFresh(chain: Chain, ca: string, pair?: DexPair | null): Prom
   merge(out, takeDex(pair), "dex:pair");
   if (out.uniqueBuyers1h != null) return out;
   const net = geckoNetwork(chain);
+  const pairAddr = pair?.pairAddress;
+  if (net && Date.now() >= geckoCoolUntil && pairAddr) {
+    try {
+      const url = "https://api.geckoterminal.com/api/v2/networks/" + net + "/pools/" + pairAddr;
+      const { status, data } = await getJson(url);
+      if (status === 429) geckoCoolUntil = Date.now() + GECKO_COOLDOWN_MS;
+      else if (status >= 200 && status < 300) merge(out, takeGeckoPools(data, pairAddr), "gecko:pool");
+    } catch {
+      /* miss — leave nulls */
+    }
+  }
+  if (out.uniqueBuyers1h != null) return out;
   if (net && Date.now() >= geckoCoolUntil) {
     try {
       const url = "https://api.geckoterminal.com/api/v2/networks/" + net + "/tokens/" + ca + "/pools";
       const { status, data } = await getJson(url);
       if (status === 429) geckoCoolUntil = Date.now() + GECKO_COOLDOWN_MS;
-      else if (status >= 200 && status < 300) merge(out, takeGeckoPools(data), "gecko:pools");
+      else if (status >= 200 && status < 300) merge(out, takeGeckoPools(data, pairAddr), "gecko:pools");
     } catch {
       /* miss — leave nulls */
     }
