@@ -1,4 +1,4 @@
-import { ACTIVITY_VOL1H_USD, BOOSTED_HIDE_UNIQUE_BUYERS, FIRST_WINDOW_SEC, HOUR, type AgeGate, type Filters, type TokenRow } from "./types";
+import { ACTIVITY_VOL1H_USD, BOOSTED_HIDE_UNIQUE_BUYERS, FIRST_WINDOW_SEC, HOUR, PONS_MCAP_BOOK_USD, type AgeGate, type Filters, type TokenRow } from "./types";
 import { isOnCurve, isStretchException, isSurvived } from "./lane";
 import { isHiddenRisky } from "./risk";
 
@@ -46,6 +46,24 @@ export function passesActivityGate(row: TokenRow, watchSet: Set<string> = new Se
 function watched(row: TokenRow, watchSet: Set<string>): boolean {
   const ca = row.ca.toLowerCase();
   return watchSet.has(ca) || watchSet.has(row.id.toLowerCase());
+}
+
+/** Graduated Pons $1M+ book that already passed age + bonding. No activity required. */
+export function isPonsMcapBook(row: TokenRow, f: Filters, watchSet: Set<string> = new Set()): boolean {
+  if (row.pad !== "PONS") return false;
+  if (!isSurvived(row)) return false;
+  if (isOnCurve(row)) return false;
+  if ((row.mcapUsd ?? 0) < PONS_MCAP_BOOK_USD) return false;
+  return passesAgeGate(row, f, watchSet);
+}
+
+/** Pons-chip extra: $1M book that would be hidden by activity or BOOK 0-vol. */
+export function isPonsMcapExtra(row: TokenRow, f: Filters, watchSet: Set<string> = new Set()): boolean {
+  if (f.pad !== "PONS") return false;
+  if (!isPonsMcapBook(row, f, watchSet)) return false;
+  if (!passesActivityGate(row, watchSet)) return true;
+  if (row.lane === "BOOK" && !((row.vol1hUsd ?? 0) > 0) && !watched(row, watchSet)) return true;
+  return false;
 }
 
 /** Factory-seen-before-pair: factory source and no Dex pair yet. FIRST includes these. */
@@ -109,10 +127,11 @@ export function isBoostedHidden(row: TokenRow): boolean {
 function matchRow(row: TokenRow, f: Filters, watchSet: Set<string>): boolean {
   if (!passesAgeGate(row, f, watchSet)) return false;
   if (!passesBondingGate(row, f)) return false;
-  if (!passesActivityGate(row, watchSet)) return false;
+  if (!passesActivityGate(row, watchSet) && !(f.pad === "PONS" && isPonsMcapBook(row, f, watchSet))) return false;
   if (isBoostedHidden(row) && !watched(row, watchSet)) return false;
   // BOOK: hide 0 / missing 1h vol unless watched. NEW/STRETCH unchanged.
-  if (row.lane === "BOOK" && !((row.vol1hUsd ?? 0) > 0) && !watched(row, watchSet)) return false;
+  // Pons chip: keep quiet $1M+ graduated books (isPonsMcapBook).
+  if (row.lane === "BOOK" && !((row.vol1hUsd ?? 0) > 0) && !watched(row, watchSet) && !(f.pad === "PONS" && isPonsMcapBook(row, f, watchSet))) return false;
   if (f.pad !== "ALL" && row.pad !== f.pad) return false;
   if (f.liqMin && (row.liqUsd ?? 0) < f.liqMin) return false;
   if (f.mcapMin && (row.mcapUsd ?? 0) < f.mcapMin) return false;

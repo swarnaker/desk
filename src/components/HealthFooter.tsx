@@ -32,12 +32,13 @@ export function HealthFooter({ signedIn = false }: { signedIn?: boolean }) {
   const ctx = useRadarFiltersOptional();
   const ageGate = ctx?.filters.ageGate ?? "6h";
   const curve = ctx?.filters.curve ?? false;
+  const pad = ctx?.filters.pad ?? "ALL";
   const watch = useWatch();
   const watchedIds = watch.file.items.map((i) => i.chain + ":" + i.ca);
   const { data } = useQuery({
-    queryKey: ["radar", ageGate, curve, watchedIds.join(",")],
+    queryKey: ["radar", ageGate, curve, watchedIds.join(","), pad],
     queryFn: async () => {
-      const res = await fetch(radarApiPath(ageGate, curve, watchedIds), { cache: "no-store" });
+      const res = await fetch(radarApiPath(ageGate, curve, watchedIds, pad), { cache: "no-store" });
       if (!res.ok) return null;
       return (await res.json()) as RadarPayload;
     },
@@ -66,7 +67,7 @@ export function HealthFooter({ signedIn = false }: { signedIn?: boolean }) {
         <span>
           {bit("Dex pumpfun", pump)} · {bit("pons catalog", catalog)} · {factoryLine} · {tgLine} · last success {ago(data?.lastSuccessAt)}
         </span>
-        <span className="text-[10px]">{data?.stale ? "STALE" : "live"} · {(data?.tokens ?? []).length} rows · {hiddenN} hidden under {hiddenLabel}</span>
+        <span className="text-[10px]">{data?.stale ? "STALE" : "live"} · {(data?.tokens ?? []).length} rows · {hiddenN} hidden under {hiddenLabel}{pad === "PONS" && (data?.banners?.ponsBooksByMcap ?? 0) > 0 ? ` · ${data?.banners?.ponsBooksByMcap} pons books included by mcap` : ""}</span>
       </div>
     </footer>
   );

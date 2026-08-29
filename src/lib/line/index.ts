@@ -4,14 +4,14 @@ export type {
   Stage, StageInput, TapeEvent, TokenClone, TokenLinks, TokenRisk, TokenRow,
 } from "./types";
 export {
-  DESK_PADS, FIRST_WINDOW_SEC, HOUR, DAY, ACTIVITY_VOL1H_USD, ACTIVITY_TX_1H, O1_TAX_SEC, PONS_TAX_SEC, PONS_CURVE_ETH,
+  DESK_PADS, FIRST_WINDOW_SEC, HOUR, DAY, ACTIVITY_VOL1H_USD, ACTIVITY_TX_1H, PONS_MCAP_BOOK_USD, O1_TAX_SEC, PONS_TAX_SEC, PONS_CURVE_ETH,
   PUMP_GRAD_MCAP, STRETCH_FILL, THIN_LP_USD, EXTREME_THIN_LP_USD, MARKET_THIN_LP_USD,
   WAKE_UNIQUE_BUYERS_MIN, BOOSTED_HIDE_UNIQUE_BUYERS, SERIAL_LAUNCHES_7D, SERIAL_MCAP_USD, WEEK_SEC,
 } from "./types";
 export { inferStage, curveFillAllowed } from "./stage";
 export { inferLane, isOnCurve, isSurvived, isStretchException, sortLane, splitLanes, computeBirth, computeWake } from "./lane";
 export { heatScore, isMoving } from "./heat";
-export { applyFilters, DEFAULT_FILTERS, passesAgeGate, passesBondingGate, passesActivityGate, isBoostedHidden, rowIsStretch, minAgeSec, tx1h } from "./filters";
+export { applyFilters, DEFAULT_FILTERS, passesAgeGate, passesBondingGate, passesActivityGate, isBoostedHidden, isPonsMcapBook, isPonsMcapExtra, rowIsStretch, minAgeSec, tx1h } from "./filters";
 export { riskFromFlags, isHiddenRisky } from "./risk";
 export type { HolderRiskInput } from "./risk";
 export { formatUsd, formatAge, formatPct, shortCa, EM } from "./format";
@@ -31,6 +31,6 @@ export type { CanonicalPin } from "./canonical";
 export { fireWatchToast, watchToastTitle, watchToastBody, watchToastHref, telegramWatchText, toastDedupeOk, birthWakeFlip, TOAST_COOLDOWN_MS, TOAST_SEEN_KEY } from "./alerts";
 export type { BirthWake } from "./alerts";
 export { copyText, COPIED_HINT_MS } from "./copyCa";
-export { parseAgeGateParam, hiddenUnderLabel, radarApiPath } from "./radarPath";
+export { parseAgeGateParam, parsePadParam, hiddenUnderLabel, radarApiPath } from "./radarPath";
 
 export { isRealDeployer, applyDeployerStats, deployerStats7d, deskOrganicBadge } from "./deployer";

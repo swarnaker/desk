@@ -1,6 +1,6 @@
 "use client";
 import { COPY } from "@/lib/line/constants";
-import { applyFilters } from "@/lib/line/filters";
+import { applyFilters, isPonsMcapExtra } from "@/lib/line/filters";
 import { splitLanes } from "@/lib/line/lane";
 import { hiddenUnderLabel, radarApiPath } from "@/lib/line/radarPath";
 import type { RadarPayload, TokenRow } from "@/lib/line/types";
@@ -16,8 +16,8 @@ export function RadarBoard() {
   const watch = useWatch();
   const watchedIds = watch.file.items.map((i) => i.chain + ":" + i.ca);
   const { data, isLoading, error } = useQuery({
-    queryKey: ["radar", filters.ageGate, filters.curve, watchedIds.join(",")],
-    queryFn: async () => (await fetch(radarApiPath(filters.ageGate, filters.curve, watchedIds), { cache: "no-store" })).json() as Promise<RadarPayload>,
+    queryKey: ["radar", filters.ageGate, filters.curve, watchedIds.join(","), filters.pad],
+    queryFn: async () => (await fetch(radarApiPath(filters.ageGate, filters.curve, watchedIds, filters.pad), { cache: "no-store" })).json() as Promise<RadarPayload>,
     refetchInterval: 20_000,
   });
   const tokens = data?.tokens || [];
@@ -25,10 +25,23 @@ export function RadarBoard() {
     () => applyFilters(tokens, filters, watch.ids),
     [tokens, filters, watch.ids],
   );
-  const lanes = splitLanes(filtered);
+  const { lanes, extras, tableRows } = useMemo(() => {
+    if (filters.pad === "PONS") {
+      const extras = filtered.filter((r) => isPonsMcapExtra(r, filters, watch.ids));
+      const extraIds = new Set(extras.map((r) => r.id));
+      const movers = filtered.filter((r) => !extraIds.has(r.id));
+      extras.sort((a, b) => (b.mcapUsd ?? 0) - (a.mcapUsd ?? 0));
+      const lanes = splitLanes(movers);
+      return { lanes, extras, tableRows: [...lanes.NEW, ...lanes.STRETCH, ...lanes.BOOK, ...extras] };
+    }
+    const lanes = splitLanes(filtered);
+    return { lanes, extras: [] as TokenRow[], tableRows: [...lanes.NEW, ...lanes.STRETCH, ...lanes.BOOK] };
+  }, [filtered, filters, watch.ids]);
   const b = data?.banners;
   const hiddenLabel = hiddenUnderLabel(filters.ageGate);
   const hiddenN = b?.hiddenUnderAge ?? 0;
+  const ponsMcapN = extras.length;
+  const bookCount = lanes.BOOK.length + extras.filter((e) => e.lane === "BOOK").length;
 
   return (
     <div className="space-y-3">
@@ -42,6 +55,7 @@ export function RadarBoard() {
           {b.factoryBeforeDex > 0 ? <div>{b.factoryBeforeDex} factory launches shown before Dex indexed a pair.</div> : null}
           {b.mergedFromSnapshot > 0 ? <div>Merged {b.mergedFromSnapshot} Pons/O1/Base rows from previous snapshot.</div> : null}
           <div>{hiddenN} hidden under {hiddenLabel}</div>
+          {filters.pad === "PONS" && ponsMcapN > 0 ? <div>{ponsMcapN} pons books included by mcap</div> : null}
           {data?.stale && b.staleAgoSec != null ? <div>STALE · last success {b.staleAgoSec}s ago</div> : null}
         </div>
       ) : null}
@@ -63,11 +77,11 @@ export function RadarBoard() {
       <div className="flex gap-3 font-mono text-[11px] tabular text-mute">
         <span>NEW {lanes.NEW.length}</span>
         <span>STRETCH {lanes.STRETCH.length}</span>
-        <span>BOOK {lanes.BOOK.length}</span>
+        <span>BOOK {bookCount}</span>
       </div>
       {filtered.length > 0 ? (
         <RadarTable
-          rows={[...lanes.NEW, ...lanes.STRETCH, ...lanes.BOOK]}
+          rows={tableRows}
           watched={(ca, chain) => watch.watched(chain, ca)}
           onWatch={(r: TokenRow) => watch.toggle(r.chain, r.ca)}
         />

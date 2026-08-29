@@ -1,5 +1,5 @@
 import { listRadar } from "@/lib/server/radar";
-import { parseAgeGateParam } from "@/lib/line/radarPath";
+import { parseAgeGateParam, parsePadParam } from "@/lib/line/radarPath";
 import { parseWatchedQuery } from "@/lib/line/watch";
 import { attachTelegramHealth } from "@/lib/server/telegram";
 import { NextResponse } from "next/server";
@@ -12,7 +12,8 @@ export async function GET(req: Request) {
     const ageGate = parseAgeGateParam(url.searchParams.get("age"));
     const curve = url.searchParams.get("curve") === "1" || url.searchParams.get("on_curve") === "1";
     const watched = parseWatchedQuery(url.searchParams.get("watched"));
-    const data = await listRadar({ ageGate, curve, watched });
+    const pad = parsePadParam(url.searchParams.get("pad"));
+    const data = await listRadar({ ageGate, curve, watched, pad });
     return NextResponse.json({ ...data, on_curve: curve ? 1 : 0, health: attachTelegramHealth(data.health) });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

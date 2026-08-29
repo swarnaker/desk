@@ -4,12 +4,12 @@ import { isProtocol, isQuoteAddr } from "@/lib/line/constants";
 import { isEvmCa, rowId } from "@/lib/line/ca";
 import { canonicalAddresses, canonicalTicker, isCanonical } from "@/lib/line/canonical";
 import { applyDeployerStats } from "@/lib/line/deployer";
-import { applyFilters, DEFAULT_FILTERS, isFactoryBeforePair, minAgeSec, rowIsStretch, tickerKey } from "@/lib/line/filters";
+import { applyFilters, DEFAULT_FILTERS, isFactoryBeforePair, isPonsMcapExtra, minAgeSec, rowIsStretch, tickerKey } from "@/lib/line/filters";
 import { heatScore } from "@/lib/line/heat";
 import { computeBirth, computeWake, inferLane, isSurvived } from "@/lib/line/lane";
 import { parseAgeGateParam } from "@/lib/line/radarPath";
 import { riskFromFlags } from "@/lib/line/risk";
-import type { AgeGate, Chain, HealthSource, RadarPayload, TokenClone, TokenRow } from "@/lib/line/types";
+import type { AgeGate, Chain, Filters, HealthSource, RadarBanners, RadarPayload, TokenClone, TokenRow } from "@/lib/line/types";
 import { HOUR } from "@/lib/line/types";
 import { candToRow, mapDexChain, type Cand } from "./classify";
 import { fetchDexSearch, fetchTokensV1, fetchTokensV1Batched, type DexPair } from "./dexscreener";
@@ -176,11 +176,11 @@ function hideSameTickerCopies(rows: TokenRow[]): { rows: TokenRow[]; hidden: num
   return { rows: out, hidden };
 }
 
-export type RadarListOpts = { ageGate?: AgeGate; curve?: boolean; watched?: Set<string> };
+export type RadarListOpts = { ageGate?: AgeGate; curve?: boolean; watched?: Set<string>; pad?: Filters["pad"] };
 
-function resolveListOpts(opts?: RadarListOpts): { ageGate: AgeGate; curve: boolean; watched: Set<string> } {
+function resolveListOpts(opts?: RadarListOpts): { ageGate: AgeGate; curve: boolean; watched: Set<string>; pad: Filters["pad"] } {
   const ageGate = parseAgeGateParam(opts?.ageGate);
-  return { ageGate, curve: opts?.curve === true, watched: opts?.watched ?? new Set() };
+  return { ageGate, curve: opts?.curve === true, watched: opts?.watched ?? new Set(), pad: opts?.pad ?? "ALL" };
 }
 
 function countHiddenUnderAge(tokens: TokenRow[], ageGate: AgeGate): number {
@@ -189,8 +189,25 @@ function countHiddenUnderAge(tokens: TokenRow[], ageGate: AgeGate): number {
   return tokens.filter((t) => (t.ageSec ?? 0) < min && !rowIsStretch(t)).length;
 }
 
-function gateDisplay(tokens: TokenRow[], opts: { ageGate: AgeGate; curve: boolean; watched: Set<string> }): TokenRow[] {
-  return applyFilters(tokens, { ...DEFAULT_FILTERS, ageGate: opts.ageGate, curve: opts.curve }, opts.watched);
+function gateDisplay(tokens: TokenRow[], opts: { ageGate: AgeGate; curve: boolean; watched: Set<string>; pad?: Filters["pad"] }): TokenRow[] {
+  return applyFilters(tokens, { ...DEFAULT_FILTERS, ageGate: opts.ageGate, curve: opts.curve, pad: opts.pad ?? "ALL" }, opts.watched);
+}
+
+function ponsBooksByMcapCount(
+  gated: TokenRow[],
+  gates: { ageGate: AgeGate; curve: boolean; watched: Set<string>; pad: Filters["pad"] },
+): number {
+  if (gates.pad !== "PONS") return 0;
+  const f: Filters = { ...DEFAULT_FILTERS, ageGate: gates.ageGate, curve: gates.curve, pad: "PONS" };
+  return gated.filter((t) => isPonsMcapExtra(t, f, gates.watched)).length;
+}
+
+function withPonsBooksBanner(
+  banners: RadarBanners,
+  gated: TokenRow[],
+  gates: { ageGate: AgeGate; curve: boolean; watched: Set<string>; pad: Filters["pad"] },
+): RadarBanners {
+  return { ...banners, ponsBooksByMcap: ponsBooksByMcapCount(gated, gates) };
 }
 
 function isHollowNonFactory(t: TokenRow): boolean {
@@ -425,30 +442,32 @@ export async function listRadar(opts?: RadarListOpts): Promise<RadarPayload> {
 
   if (!dexOk && !tokens.length && prev?.tokens.length) {
     const staleAgo = prev.lastSuccessAt ? Math.round((now - Date.parse(prev.lastSuccessAt)) / 1000) : null;
+    const gated = gateDisplay(prev.tokens, gates);
     return {
-      tokens: gateDisplay(prev.tokens, gates),
+      tokens: gated,
       stale: true,
       lastSuccessAt: prev.lastSuccessAt,
       fetchedAt: new Date(now).toISOString(),
-      banners: { factoryBeforeDex: prev.banners?.factoryBeforeDex ?? 0, mergedFromSnapshot: prev.tokens.length, staleAgoSec: staleAgo, sameNameCopiesHidden: prev.banners?.sameNameCopiesHidden ?? 0, hiddenUnderAge: countHiddenUnderAge(prev.tokens, gates.ageGate) },
+      banners: withPonsBooksBanner({ factoryBeforeDex: prev.banners?.factoryBeforeDex ?? 0, mergedFromSnapshot: prev.tokens.length, staleAgoSec: staleAgo, sameNameCopiesHidden: prev.banners?.sameNameCopiesHidden ?? 0, hiddenUnderAge: countHiddenUnderAge(prev.tokens, gates.ageGate) }, gated, gates),
       health: { sources, hits, attempts },
     };
   }
 
   if (!dexOk && tokens.length === 0 && prev) {
     const staleAgo = prev.lastSuccessAt ? Math.round((now - Date.parse(prev.lastSuccessAt)) / 1000) : null;
+    const gated = gateDisplay(prev.tokens, gates);
     return {
       ...prev,
-      tokens: gateDisplay(prev.tokens, gates),
+      tokens: gated,
       stale: true,
       fetchedAt: new Date(now).toISOString(),
-      banners: {
+      banners: withPonsBooksBanner({
         factoryBeforeDex: prev.banners?.factoryBeforeDex ?? 0,
         mergedFromSnapshot: prev.banners?.mergedFromSnapshot ?? 0,
         staleAgoSec: staleAgo,
         sameNameCopiesHidden: prev.banners?.sameNameCopiesHidden ?? 0,
         hiddenUnderAge: countHiddenUnderAge(prev.tokens, gates.ageGate),
-      },
+      }, gated, gates),
       health: { sources, hits, attempts },
     };
   }
@@ -466,7 +485,8 @@ export async function listRadar(opts?: RadarListOpts): Promise<RadarPayload> {
   };
   // Persist FULL ingest (copy-collapsed, ungated). Return UI-gated tokens.
   if (tokens.length) persistSnapshot(payload);
-  return { ...payload, tokens: gateDisplay(tokens, gates) };
+  const gated = gateDisplay(tokens, gates);
+  return { ...payload, tokens: gated, banners: withPonsBooksBanner(payload.banners, gated, gates) };
 }
 
 export function getSnapshot(): RadarPayload | null {

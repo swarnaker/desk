@@ -218,6 +218,26 @@ ok(!passesActivityGate(tx7h, new Set()), "activity fails dust vol even with 20 t
 ok(passesActivityGate(tx7h, new Set([tx7h.ca.toLowerCase()])), "watched low-vol still passes activity");
 ok(passesActivityGate(youngWatch, new Set([youngWatch.ca.toLowerCase()])), "watched bypasses activity");
 
+const quietPonsMcap = row({
+  symbol: "QUIETPONS",
+  ca: "QuietPons1111111111111111111111111111111111",
+  ageSec: 30 * HOUR,
+  vol1hUsd: 0,
+  buys: 0,
+  sells: 0,
+  stage: "GRADUATED",
+  pad: "PONS",
+  mcapUsd: 3e6,
+  lane: "BOOK",
+  chain: "robinhood",
+});
+const ponsChip = applyFilters([quietPonsMcap], { ...DEFAULT_FILTERS, pad: "PONS" }, new Set());
+const allChip = applyFilters([quietPonsMcap], DEFAULT_FILTERS, new Set());
+const o1Chip = applyFilters([quietPonsMcap], { ...DEFAULT_FILTERS, pad: "O1" }, new Set());
+ok(ponsChip.some((r) => r.symbol === "QUIETPONS"), "pad PONS keeps quiet graduated Pons $3M");
+ok(!allChip.some((r) => r.symbol === "QUIETPONS"), "pad ALL drops quiet graduated Pons $3M");
+ok(!o1Chip.some((r) => r.symbol === "QUIETPONS"), "pad O1 drops quiet graduated Pons $3M");
+
 const laneSrc = fs.readFileSync(path.join(__dirname, "..", "src", "components", "Lane.tsx"), "utf8");
 ok(laneSrc.includes("<CopyCa ca={row.ca}"), "Lane CA cell uses CopyCa");
 ok(laneSrc.includes("<a href={href}") && laneSrc.includes("{row.symbol}</a>"), "token NAME keeps <a href> to desk");
