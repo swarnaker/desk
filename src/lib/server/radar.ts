@@ -297,6 +297,24 @@ export async function listRadar(opts?: RadarListOpts): Promise<RadarPayload> {
     persistSnapshot(catalogPayload);
   }
 
+  // CONDITIONAL: Harvest VIRTUALS or CLANKER only when explicitly requested
+  if (gates.pad === "VIRTUALS" || gates.pad === "CLANKER") {
+    const { harvestVirtuals } = await import("./virtuals");
+    const { harvestClanker } = await import("./clanker");
+    
+    if (gates.pad === "VIRTUALS") {
+      const { launches, health } = await harvestVirtuals();
+      sources.push(health);
+      for (const l of launches) upsertOfficial(map, l, "virtuals", false);
+    }
+    
+    if (gates.pad === "CLANKER") {
+      const { launches, health } = await harvestClanker();
+      sources.push(health);
+      for (const l of launches) upsertOfficial(map, l, "clanker", false);
+    }
+  }
+
   // OPTIONAL DEX ENRICHMENT: Only if time permits (budget 2s max)
   const elapsed = Date.now() - startMs;
   const dexBudget = 2000;
