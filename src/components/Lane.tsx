@@ -118,11 +118,11 @@ export function RadarTable({ rows, watched, onWatch, sortColumn, sortDirection, 
   rows: TokenRow[];
   watched: (ca: string, chain: TokenRow["chain"]) => boolean;
   onWatch: (row: TokenRow) => void;
-  sortColumn: "heat" | "liq" | "vol1h" | "buyPct" | null;
+  sortColumn: "heat" | "mcap" | "liq" | "vol1h" | "buyPct" | null;
   sortDirection: "asc" | "desc";
-  onSort: (column: "heat" | "liq" | "vol1h" | "buyPct") => void;
+  onSort: (column: "heat" | "mcap" | "liq" | "vol1h" | "buyPct") => void;
 }) {
-  const sortIndicator = (col: "heat" | "liq" | "vol1h" | "buyPct") => {
+  const sortIndicator = (col: "heat" | "mcap" | "liq" | "vol1h" | "buyPct") => {
     if (sortColumn !== col) return "";
     return sortDirection === "desc" ? " ↓" : " ↑";
   };
@@ -155,7 +155,9 @@ export function RadarTable({ rows, watched, onWatch, sortColumn, sortDirection, 
                   Heat{sortIndicator("heat")}
                 </th>
                 <th className="whitespace-nowrap px-2 py-1.5 font-normal">Risk</th>
-                <th className="whitespace-nowrap px-2 py-1.5 font-normal">Mcap</th>
+                <th className="whitespace-nowrap px-2 py-1.5 font-normal cursor-pointer hover:text-gold" onClick={() => onSort("mcap")}>
+                  Mcap{sortIndicator("mcap")}
+                </th>
                 <th className="whitespace-nowrap px-2 py-1.5 font-normal cursor-pointer hover:text-gold" onClick={() => onSort("liq")}>
                   Liq{sortIndicator("liq")}
                 </th>

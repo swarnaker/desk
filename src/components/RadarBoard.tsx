@@ -11,7 +11,7 @@ import { RadarTable } from "./Lane";
 import { useRadarFilters } from "@/hooks/useRadarFilters";
 import { useWatch } from "@/hooks/useWatch";
 
-type SortColumn = "heat" | "liq" | "vol1h" | "buyPct" | null;
+type SortColumn = "heat" | "mcap" | "liq" | "vol1h" | "buyPct" | null;
 type SortDirection = "asc" | "desc";
 
 function MobileSortBar({ sortColumn, sortDirection, onSort }: {
@@ -32,6 +32,7 @@ function MobileSortBar({ sortColumn, sortDirection, onSort }: {
   return (
     <div className="flex gap-1.5 border border-hairline bg-surface p-2 text-[11px] sm:hidden">
       {btn("heat", "HEAT")}
+      {btn("mcap", "MCAP")}
       {btn("liq", "LIQ")}
       {btn("vol1h", "1H")}
       {btn("buyPct", "BUY%")}
@@ -71,6 +72,9 @@ export function RadarBoard() {
       if (sortColumn === "heat") {
         aVal = a.heat;
         bVal = b.heat;
+      } else if (sortColumn === "mcap") {
+        aVal = a.mcapUsd ?? 0;
+        bVal = b.mcapUsd ?? 0;
       } else if (sortColumn === "liq") {
         aVal = a.liqUsd ?? 0;
         bVal = b.liqUsd ?? 0;
