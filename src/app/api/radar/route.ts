@@ -1,4 +1,4 @@
-import { listRadar } from "@/lib/server/radar";
+import { getSnapshot, listRadar } from "@/lib/server/radar";
 import { parseAgeGateParam, parseEarlyParam, parsePadParam } from "@/lib/line/radarPath";
 import { parseWatchedQuery } from "@/lib/line/watch";
 import { attachTelegramHealth } from "@/lib/server/telegram";
@@ -18,6 +18,15 @@ export async function GET(req: Request) {
     const data = await listRadar({ ageGate, curve, watched, pad, early });
     return NextResponse.json({ ...data, on_curve: curve ? 1 : 0, health: attachPayboxHealth(attachTelegramHealth(data.health)) });
   } catch (err) {
+    const snap = getSnapshot();
+    if (snap && snap.tokens.length) {
+      return NextResponse.json({ 
+        ...snap, 
+        stale: true,
+        on_curve: 0,
+        health: attachPayboxHealth(attachTelegramHealth(snap.health))
+      });
+    }
     const msg = err instanceof Error ? err.message : String(err);
     const health = attachPayboxHealth(attachTelegramHealth({
       sources: [{ name: "radar", ok: false, hits: 0, attempts: 1, ms: 0, detail: msg }],

@@ -15,27 +15,36 @@ import { candToRow, mapDexChain, type Cand } from "./classify";
 import { fetchDexSearch, fetchTokensV1, fetchTokensV1Batched, type DexPair } from "./dexscreener";
 import { applyHoldersToRow, applyNullHolders, peekHolders } from "./holders";
 import { applyMakersToRow, applyNullMakers, peekMakers } from "./makers";
-import { harvestO1Factory, harvestPonsFactoryV1, harvestPonsFactoryV2, type FactoryLaunch } from "./factory";
 import { fetchGeckoBaseNew } from "./gecko";
 import { fetchO1LaunchApi } from "./o1";
 import { harvestPonsGraduatedCatalog } from "./pons";
+import type { FactoryLaunch } from "./factory";
 
-const SNAP = path.join(process.cwd(), "data", "radar-snapshot.json");
+const SNAP = path.join("/tmp", "radar-snapshot.json");
+const CACHE_MS = 5 * 60 * 1000;
+let memCache: { payload: RadarPayload; at: number } | null = null;
+
 // Do NOT Dex-search pons / o1 / robinhood — those queries return pad tokens and leftovers.
 const SEARCHES = ["pumpfun", "pumpswap", "cashcat", "basecat"] as const;
 
 function loadSnapshot(): RadarPayload | null {
+  if (memCache && Date.now() - memCache.at < CACHE_MS) {
+    return memCache.payload;
+  }
   try {
     const raw = fs.readFileSync(SNAP, "utf8");
     const parsed = JSON.parse(raw) as RadarPayload;
-    if (parsed && Array.isArray(parsed.tokens)) return parsed;
+    if (parsed && Array.isArray(parsed.tokens)) {
+      memCache = { payload: parsed, at: Date.now() };
+      return parsed;
+    }
   } catch { /* none */ }
-  return null;
+  return memCache?.payload || null;
 }
 
 function persistSnapshot(data: RadarPayload) {
+  memCache = { payload: data, at: Date.now() };
   try {
-    fs.mkdirSync(path.dirname(SNAP), { recursive: true });
     const tmp = SNAP + ".tmp";
     fs.writeFileSync(tmp, JSON.stringify(data));
     fs.renameSync(tmp, SNAP);
@@ -276,24 +285,18 @@ export async function listRadar(opts?: RadarListOpts): Promise<RadarPayload> {
     }
   })();
 
-  const [ponsCat, ponsV1, ponsV2, o1Base, o1Rh, o1Fac] = await Promise.all([
+  const [ponsCat, o1Base, o1Rh] = await Promise.all([
     harvestPonsGraduatedCatalog(),
-    harvestPonsFactoryV1(),
-    harvestPonsFactoryV2(),
     fetchO1LaunchApi(8453),
     fetchO1LaunchApi(4663),
-    harvestO1Factory(),
     pinTask,
   ]);
-  sources.push(ponsCat.health, ponsV1.health, ponsV2.health, o1Base.health, o1Rh.health, o1Fac.health);
+  sources.push(ponsCat.health, o1Base.health, o1Rh.health);
 
-  // Catalog first, then factory V1/V2 upgrade same chain:ca. Dex upgrades in place.
+  // Catalog first. Do NOT await factory adapters (OFF). Dex upgrades in place.
   for (const l of ponsCat.launches) upsertOfficial(map, l, "pons:catalog", false);
-  for (const l of ponsV1.launches) upsertOfficial(map, l, "pons:factory-v1", true);
-  for (const l of ponsV2.launches) upsertOfficial(map, l, "pons:factory-v2", true);
   for (const l of o1Base.launches) upsertOfficial(map, l, "o1:api", false);
   for (const l of o1Rh.launches) upsertOfficial(map, l, "o1:api", false);
-  for (const l of o1Fac.launches) upsertOfficial(map, l, "o1:factory", true);
 
   // Catalog stays in the ingest/snapshot. Do not Dex-hydrate the whole 300+ catalog
   // onto the default board (dust 1h vol would leak every graduate into BOOK).
