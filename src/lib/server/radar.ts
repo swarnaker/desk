@@ -265,6 +265,29 @@ export async function listRadar(opts?: RadarListOpts): Promise<RadarPayload> {
   for (const l of o1Base.launches) upsertOfficial(map, l, "o1:api", false);
   for (const l of o1Rh.launches) upsertOfficial(map, l, "o1:api", false);
 
+  // REQUIRED: Hydrate official Pons/O1 rows without real pairs (including pool=0x0) by token CA
+  // This is NOT optional - V2 graduates with pool=0x0 need this to appear on the board
+  const DEX_NOPAIR_CAP = 150;
+  const needDex: Record<"robinhood" | "base", { ca: string; mcap: number }[]> = { robinhood: [], base: [] };
+  for (const c of map.values()) {
+    if (c.chain !== "robinhood" && c.chain !== "base") continue;
+    const official = isOfficialPonsSources(c.sources) || isOfficialO1Sources(c.sources) || !!c.factory;
+    if (!official) continue;
+    // Include rows with no pair OR 0x0 pool
+    if (isRealDexPair(c.pair)) continue;
+    needDex[c.chain].push({ ca: c.ca, mcap: c.factory?.mcapUsd ?? 0 });
+  }
+  for (const chain of ["robinhood", "base"] as const) {
+    const addrs = needDex[chain]
+      .sort((a, b) => b.mcap - a.mcap)
+      .slice(0, DEX_NOPAIR_CAP)
+      .map((x) => x.ca);
+    if (!addrs.length) continue;
+    const { items, health } = await fetchTokensV1Batched(chain, addrs, 30, 4);
+    sources.push(health);
+    for (const p of items) addPair(map, p, "dex:tokens", undefined);
+  }
+
   // Build catalog TokenRows immediately
   const catalogTokens = buildTokenRows(map, now, prev, sources);
   
