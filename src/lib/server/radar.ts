@@ -249,115 +249,76 @@ export async function listRadar(opts?: RadarListOpts): Promise<RadarPayload> {
   const gates = resolveListOpts(opts);
   const prev = loadSnapshot();
   const sources: HealthSource[] = [];
-  const map = new Map<string, Cand>();
   const now = Date.now();
+  const startMs = now;
 
-  const dexJobs = SEARCHES.map(async (q) => {
-    const { items, health } = await fetchDexSearch(q);
-    sources.push(health);
-    if (health.ok) {
-      for (const p of items) addPair(map, p, "dex:" + q, q);
-    }
-  });
-  const cloneHunts: Array<{ q: string; tick: string; asQ: string }> = [
-    { q: "cashcat pump", tick: "CASHCAT", asQ: "cashcat" },
-    { q: "basecat pump", tick: "BASECAT", asQ: "basecat" },
-  ];
-  const cloneJobs = cloneHunts.map(async (h) => {
-    const { items, health } = await fetchDexSearch(h.q);
-    sources.push(health);
-    if (!health.ok) return;
-    for (const p of items) {
-      if (tickerKey(p.baseToken?.symbol) !== h.tick) continue;
-      addPair(map, p, "dex:" + h.asQ, h.asQ);
-    }
-  });
-  await Promise.all([...dexJobs, ...cloneJobs]);
-
-  // Dex-include backup for known CAs (CASHCAT/BASECAT examples). Not a runner pin.
-  const pinTask = (async () => {
-    for (const chain of ["robinhood", "base"] as Chain[]) {
-      const addrs = canonicalAddresses(chain);
-      if (!addrs.length) continue;
-      const { items, health } = await fetchTokensV1(chain, addrs);
-      sources.push(health);
-      for (const p of items) addPair(map, p, "dex:canonical", undefined);
-    }
-  })();
-
+  // FAST PATH: Await ONLY catalog + o1 API. Factory adapters OFF.
   const [ponsCat, o1Base, o1Rh] = await Promise.all([
     harvestPonsGraduatedCatalog(),
     fetchO1LaunchApi(8453),
     fetchO1LaunchApi(4663),
-    pinTask,
   ]);
   sources.push(ponsCat.health, o1Base.health, o1Rh.health);
 
-  // Catalog first. Do NOT await factory adapters (OFF). Dex upgrades in place.
+  const map = new Map<string, Cand>();
   for (const l of ponsCat.launches) upsertOfficial(map, l, "pons:catalog", false);
   for (const l of o1Base.launches) upsertOfficial(map, l, "o1:api", false);
   for (const l of o1Rh.launches) upsertOfficial(map, l, "o1:api", false);
 
-  // Catalog stays in the ingest/snapshot. Do not Dex-hydrate the whole 300+ catalog
-  // onto the default board (dust 1h vol would leak every graduate into BOOK).
-  const DEX_ADDR_CAP = 60;
-  const DEX_NOPAIR_CAP = 150;
-  const needDex: Record<"robinhood" | "base", { ca: string; mcap: number; pri: number }[]> = { robinhood: [], base: [] };
-  for (const c of map.values()) {
-    if (c.chain !== "robinhood" && c.chain !== "base") continue;
-    const official = isOfficialPonsSources(c.sources) || isOfficialO1Sources(c.sources) || !!c.factory;
-    if (!official) continue;
-    const ageSec = c.factory?.timestampMs != null ? (now - c.factory.timestampMs) / 1000 : undefined;
-    const young = ageSec != null && ageSec < 6 * HOUR;
-    const o1 = isOfficialO1Sources(c.sources);
-    const fac = [...c.sources].some((s) => s === "factory" || s.startsWith("pons:factory"));
-    // Official Pons/O1 without a real pair (incl. pool=0x0) get highest priority so V2 grads hydrate by token CA.
-    const noPair = !isRealDexPair(c.pair);
-    const pri = noPair ? 2 : ((o1 || fac || young) ? 1 : 0);
-    needDex[c.chain].push({ ca: c.ca, mcap: c.factory?.mcapUsd ?? 0, pri });
-  }
-  for (const chain of ["robinhood", "base"] as const) {
-    const addrs = needDex[chain]
-      .sort((a, b) => b.pri - a.pri || b.mcap - a.mcap)
-      .slice(0, DEX_ADDR_CAP)
-      .map((x) => x.ca);
-    if (!addrs.length) continue;
-    const { items, health } = await fetchTokensV1Batched(chain, addrs, 30, 4);
-    sources.push(health);
-    for (const p of items) addPair(map, p, "dex:tokens", undefined);
-  }
-  // Second pass: remaining official robinhood/base cands still missing a real pair. Hydrate by token CA.
-  for (const chain of ["robinhood", "base"] as const) {
-    const leftover: { ca: string; mcap: number }[] = [];
-    for (const c of map.values()) {
-      if (c.chain !== chain) continue;
-      const official = isOfficialPonsSources(c.sources) || isOfficialO1Sources(c.sources) || !!c.factory;
-      if (!official) continue;
-      if (isRealDexPair(c.pair)) continue;
-      leftover.push({ ca: c.ca, mcap: c.factory?.mcapUsd ?? 0 });
-    }
-    const addrs = leftover.sort((a, b) => b.mcap - a.mcap).slice(0, DEX_NOPAIR_CAP).map((x) => x.ca);
-    if (!addrs.length) continue;
-    const { items, health } = await fetchTokensV1Batched(chain, addrs, 30, 4);
-    sources.push(health);
-    for (const p of items) addPair(map, p, "dex:tokens", undefined);
+  // Build catalog TokenRows immediately
+  const catalogTokens = buildTokenRows(map, now, prev, sources);
+  
+  // Persist catalog snapshot NOW so /api/radar catch has data
+  if (catalogTokens.tokens.length) {
+    const catalogPayload = finalizeBanners(catalogTokens, gates);
+    persistSnapshot(catalogPayload);
   }
 
-  const geckoDexNames = new Set(
-    [...map.values()].filter((c) => isRealDexPair(c.pair)).map((c) => (c.pair?.baseToken?.name || "").toLowerCase()),
-  );
-  const gecko = await fetchGeckoBaseNew();
-  sources.push(gecko.health);
-  if (gecko.health.ok) {
-    // Skip names Dex already has. Do not insert gecko-only stubs (no pair).
-    for (const g of gecko.items) {
-      const key = rowId("base", g.address);
-      if (map.has(key)) continue;
-      const nm = (g.name || "").toLowerCase();
-      if (nm && geckoDexNames.has(nm)) continue;
-    }
+  // OPTIONAL DEX ENRICHMENT: Only if time permits (budget 2s max)
+  const elapsed = Date.now() - startMs;
+  const dexBudget = 2000;
+  if (elapsed < dexBudget) {
+    const dexJobs = SEARCHES.map(async (q) => {
+      const { items, health } = await fetchDexSearch(q);
+      sources.push(health);
+      if (health.ok) {
+        for (const p of items) addPair(map, p, "dex:" + q, q);
+      }
+    });
+    const cloneHunts: Array<{ q: string; tick: string; asQ: string }> = [
+      { q: "cashcat pump", tick: "CASHCAT", asQ: "cashcat" },
+      { q: "basecat pump", tick: "BASECAT", asQ: "basecat" },
+    ];
+    const cloneJobs = cloneHunts.map(async (h) => {
+      const { items, health } = await fetchDexSearch(h.q);
+      sources.push(health);
+      if (!health.ok) return;
+      for (const p of items) {
+        if (tickerKey(p.baseToken?.symbol) !== h.tick) continue;
+        addPair(map, p, "dex:" + h.asQ, h.asQ);
+      }
+    });
+    await Promise.race([
+      Promise.all([...dexJobs, ...cloneJobs]),
+      new Promise(r => setTimeout(r, Math.max(100, dexBudget - elapsed)))
+    ]);
   }
 
+  // Build final rows with Dex enrichment (if it completed)
+  const finalTokens = buildTokenRows(map, now, prev, sources);
+  const payload = finalizeBanners(finalTokens, gates);
+  
+  if (finalTokens.tokens.length) persistSnapshot(payload);
+  const gated = gateDisplay(finalTokens.tokens, gates);
+  return { ...payload, tokens: gated, banners: withPonsBooksBanner(payload.banners, gated, gates) };
+}
+
+function buildTokenRows(
+  map: Map<string, Cand>,
+  now: number,
+  prev: RadarPayload | null,
+  sources: HealthSource[]
+): { tokens: TokenRow[]; mergedFromSnapshot: number } {
   let tokens: TokenRow[] = [];
   for (const c of map.values()) {
     const row = candToRow(c, now);
@@ -376,7 +337,6 @@ export async function listRadar(opts?: RadarListOpts): Promise<RadarPayload> {
       if (have.has(old.id)) continue;
       if (old.pad === "PUMP" || old.chain === "solana") continue;
       if (isProtocol(old.ca) || isQuoteAddr(old.ca, old.symbol)) continue;
-      // Drop leftover Dex-search PONS/O1 rows that were never catalog/factory.
       if (old.pad === "PONS" && !isOfficialPonsSources(old.sources || [])) continue;
       if (old.pad === "O1" && !isOfficialO1Sources(old.sources || []) && !isCanonical(old.chain, old.ca)) continue;
       const src = old.sources || [];
@@ -436,13 +396,6 @@ export async function listRadar(opts?: RadarListOpts): Promise<RadarPayload> {
       pad: t.pad,
     });
   }
-  // Count young ingest (including later-hidden copies) before copy drop.
-  const hiddenUnderAge = countHiddenUnderAge(tokens, gates.ageGate);
-  const minAge = minAgeSec(gates.ageGate);
-  const factoryBeforeDex = tokens.filter((t) => {
-    if (!isFactoryBeforePair(t)) return false;
-    return (t.ageSec ?? 0) >= minAge && isSurvived(t);
-  }).length;
 
   for (const t of tokens) {
     t.lane = inferLane({
@@ -461,7 +414,6 @@ export async function listRadar(opts?: RadarListOpts): Promise<RadarPayload> {
 
   const hiddenCopies = hideSameTickerCopies(tokens);
   tokens = hiddenCopies.rows;
-  const sameNameCopiesHidden = hiddenCopies.hidden;
 
   applyDeployerStats(tokens);
   for (const t of tokens) {
@@ -469,56 +421,30 @@ export async function listRadar(opts?: RadarListOpts): Promise<RadarPayload> {
     t.wake = computeWake(t);
   }
 
-  const { hits, attempts } = sumHealth(sources);
-  const dexOk = sources.some((s) => s.name.startsWith("DexScreener") && s.ok);
+  return { tokens, mergedFromSnapshot };
+}
 
-  if (!dexOk && !tokens.length && prev?.tokens.length) {
-    const staleAgo = prev.lastSuccessAt ? Math.round((now - Date.parse(prev.lastSuccessAt)) / 1000) : null;
-    const gated = gateDisplay(prev.tokens, gates);
-    return {
-      tokens: gated,
-      stale: true,
-      lastSuccessAt: prev.lastSuccessAt,
-      fetchedAt: new Date(now).toISOString(),
-      banners: withPonsBooksBanner({ factoryBeforeDex: prev.banners?.factoryBeforeDex ?? 0, mergedFromSnapshot: prev.tokens.length, staleAgoSec: staleAgo, sameNameCopiesHidden: prev.banners?.sameNameCopiesHidden ?? 0, hiddenUnderAge: countHiddenUnderAge(prev.tokens, gates.ageGate) }, gated, gates),
-      health: { sources, hits, attempts },
-    };
-  }
+function finalizeBanners(
+  result: { tokens: TokenRow[]; mergedFromSnapshot: number },
+  gates: { ageGate: AgeGate; curve: boolean; watched: Set<string>; pad: Filters["pad"]; early: boolean }
+): RadarPayload {
+  const now = Date.now();
+  const minAge = minAgeSec(gates.ageGate);
+  const hiddenUnderAge = countHiddenUnderAge(result.tokens, gates.ageGate);
+  const factoryBeforeDex = result.tokens.filter((t) => {
+    if (!isFactoryBeforePair(t)) return false;
+    return (t.ageSec ?? 0) >= minAge && isSurvived(t);
+  }).length;
+  const sameNameCopiesHidden = result.tokens.reduce((sum, t) => sum + (t.sameNameCopies || 0), 0);
 
-  if (!dexOk && tokens.length === 0 && prev) {
-    const staleAgo = prev.lastSuccessAt ? Math.round((now - Date.parse(prev.lastSuccessAt)) / 1000) : null;
-    const gated = gateDisplay(prev.tokens, gates);
-    return {
-      ...prev,
-      tokens: gated,
-      stale: true,
-      fetchedAt: new Date(now).toISOString(),
-      banners: withPonsBooksBanner({
-        factoryBeforeDex: prev.banners?.factoryBeforeDex ?? 0,
-        mergedFromSnapshot: prev.banners?.mergedFromSnapshot ?? 0,
-        staleAgoSec: staleAgo,
-        sameNameCopiesHidden: prev.banners?.sameNameCopiesHidden ?? 0,
-        hiddenUnderAge: countHiddenUnderAge(prev.tokens, gates.ageGate),
-      }, gated, gates),
-      health: { sources, hits, attempts },
-    };
-  }
-
-  const lastSuccessAt = dexOk || tokens.length ? new Date(now).toISOString() : prev?.lastSuccessAt ?? null;
-  const stale = !dexOk;
-  const staleAgoSec = stale && lastSuccessAt ? Math.round((now - Date.parse(lastSuccessAt)) / 1000) : null;
-  const payload: RadarPayload = {
-    tokens,
-    stale,
-    lastSuccessAt,
+  return {
+    tokens: result.tokens,
+    stale: false,
+    lastSuccessAt: new Date(now).toISOString(),
     fetchedAt: new Date(now).toISOString(),
-    banners: { factoryBeforeDex, mergedFromSnapshot, staleAgoSec, sameNameCopiesHidden, hiddenUnderAge },
-    health: { sources, hits, attempts },
+    banners: { factoryBeforeDex, mergedFromSnapshot: result.mergedFromSnapshot, staleAgoSec: null, sameNameCopiesHidden, hiddenUnderAge },
+    health: { sources: [], hits: 0, attempts: 0 },
   };
-  // Persist FULL ingest (copy-collapsed, ungated). Return UI-gated tokens.
-  if (tokens.length) persistSnapshot(payload);
-  const gated = gateDisplay(tokens, gates);
-  return { ...payload, tokens: gated, banners: withPonsBooksBanner(payload.banners, gated, gates) };
 }
 
 export function getSnapshot(): RadarPayload | null {

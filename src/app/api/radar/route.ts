@@ -3,6 +3,13 @@ import { parseAgeGateParam, parseEarlyParam, parsePadParam } from "@/lib/line/ra
 import { parseWatchedQuery } from "@/lib/line/watch";
 import { attachTelegramHealth } from "@/lib/server/telegram";
 import { attachPayboxHealth } from "@/lib/server/paybox";
+import { harvestPonsGraduatedCatalog } from "@/lib/server/pons";
+import { fetchO1LaunchApi } from "@/lib/server/o1";
+import { candToRow } from "@/lib/server/classify";
+import { riskFromFlags } from "@/lib/line/risk";
+import { heatScore } from "@/lib/line/heat";
+import { inferLane } from "@/lib/line/lane";
+import type { TokenRow, HealthSource } from "@/lib/line/types";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -27,23 +34,92 @@ export async function GET(req: Request) {
         health: attachPayboxHealth(attachTelegramHealth(snap.health))
       });
     }
-    const msg = err instanceof Error ? err.message : String(err);
-    const health = attachPayboxHealth(attachTelegramHealth({
-      sources: [{ name: "radar", ok: false, hits: 0, attempts: 1, ms: 0, detail: msg }],
-      hits: 0,
-      attempts: 1,
-    }));
-    return NextResponse.json(
-      {
-        tokens: [],
+    
+    // Last resort: build minimal rows from pons catalog + o1 cache
+    try {
+      const now = Date.now();
+      const sources: HealthSource[] = [];
+      const [ponsCat, o1Base, o1Rh] = await Promise.all([
+        harvestPonsGraduatedCatalog(),
+        fetchO1LaunchApi(8453),
+        fetchO1LaunchApi(4663),
+      ]);
+      sources.push(ponsCat.health, o1Base.health, o1Rh.health);
+      
+      const tokens: TokenRow[] = [];
+      for (const l of [...ponsCat.launches, ...o1Base.launches, ...o1Rh.launches]) {
+        const row = candToRow({
+          chain: l.chain,
+          ca: l.token,
+          sources: new Set([l.pad === "PONS" ? "pons:catalog" : "o1:api"]),
+          factory: l,
+        }, now);
+        if (row) {
+          row.risk = riskFromFlags([], row.liqUsd, row.mcapUsd);
+          row.heat = heatScore({
+            ageSec: row.ageSec,
+            buyPct: row.buyPct,
+            vol1hUsd: row.vol1hUsd,
+            mcapUsd: row.mcapUsd,
+            liqUsd: row.liqUsd,
+            moving: row.moving,
+            curveFillPct: row.pad === "O1" ? undefined : row.curveFillPct,
+            inTaxWindow: row.stage === "ANTI_SNIPE",
+            sameNameCopies: 0,
+            riskLevel: row.risk.level,
+            pad: row.pad,
+          });
+          row.lane = inferLane({
+            pad: row.pad,
+            stage: row.stage,
+            ageSec: row.ageSec,
+            curveFillPct: row.pad === "O1" ? undefined : row.curveFillPct,
+            printing: false,
+            factoryOnly: false,
+            vol1hUsd: row.vol1hUsd,
+            moving: row.moving,
+            padSub: row.padSub,
+            liqUsd: row.liqUsd,
+          });
+          tokens.push(row);
+        }
+      }
+      
+      const health = attachPayboxHealth(attachTelegramHealth({
+        sources,
+        hits: sources.filter(s => s.ok).length,
+        attempts: sources.length,
+      }));
+      
+      return NextResponse.json({
+        tokens,
         stale: true,
-        lastSuccessAt: null,
+        lastSuccessAt: sources.some(s => s.ok) ? new Date().toISOString() : null,
         fetchedAt: new Date().toISOString(),
         banners: { factoryBeforeDex: 0, mergedFromSnapshot: 0, staleAgoSec: null, sameNameCopiesHidden: 0, hiddenUnderAge: 0 },
         on_curve: 0,
         health,
-      },
-      { status: 200 },
-    );
+      });
+    } catch {
+      // Ultimate fallback
+      const msg = err instanceof Error ? err.message : String(err);
+      const health = attachPayboxHealth(attachTelegramHealth({
+        sources: [{ name: "radar", ok: false, hits: 0, attempts: 1, ms: 0, detail: msg }],
+        hits: 0,
+        attempts: 1,
+      }));
+      return NextResponse.json(
+        {
+          tokens: [],
+          stale: true,
+          lastSuccessAt: null,
+          fetchedAt: new Date().toISOString(),
+          banners: { factoryBeforeDex: 0, mergedFromSnapshot: 0, staleAgoSec: null, sameNameCopiesHidden: 0, hiddenUnderAge: 0 },
+          on_curve: 0,
+          health,
+        },
+        { status: 200 },
+      );
+    }
   }
 }
