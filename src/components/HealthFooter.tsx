@@ -29,7 +29,7 @@ function ago(iso: string | null | undefined): string {
   return Math.floor(s / 3600) + "h";
 }
 
-export function HealthFooter({ signedIn = false }: { signedIn?: boolean }) {
+export function HealthFooter({ signedIn = false, page = "radar" }: { signedIn?: boolean; page?: "radar" | "account" }) {
   const ctx = useRadarFiltersOptional();
   const ageGate = ctx?.filters.ageGate ?? "6h";
   const curve = ctx?.filters.curve ?? false;
@@ -49,6 +49,19 @@ export function HealthFooter({ signedIn = false }: { signedIn?: boolean }) {
     enabled: signedIn,
     refetchInterval: 20_000,
   });
+  
+  if (page === "radar") {
+    // Short version for radar page
+    return (
+      <footer className="fixed bottom-0 left-0 right-0 border-t border-hairline bg-bg/95 px-3 py-1.5 font-mono text-[11px] tabular text-mute">
+        <div className="mx-auto max-w-[1600px] text-center">
+          {data?.stale ? "STALE" : "live"} · {(data?.tokens ?? []).length} rows
+        </div>
+      </footer>
+    );
+  }
+  
+  // Full version for account page
   const sources = data?.health?.sources ?? [];
   const pump = findSrc(sources, "pumpfun") || findSrc(sources, "DexScreener");
   const catalog = findSrc(sources, "graduated catalog") || findSrc(sources, "pons catalog");

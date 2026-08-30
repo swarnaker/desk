@@ -2,7 +2,7 @@
 import { COPY } from "@/lib/line/constants";
 import { applyFilters } from "@/lib/line/filters";
 import { sortLane, splitLanes } from "@/lib/line/lane";
-import { hiddenUnderLabel, radarApiPath } from "@/lib/line/radarPath";
+import { radarApiPath } from "@/lib/line/radarPath";
 import type { RadarPayload, TokenRow } from "@/lib/line/types";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -13,6 +13,31 @@ import { useWatch } from "@/hooks/useWatch";
 
 type SortColumn = "heat" | "liq" | "vol1h" | "buyPct" | null;
 type SortDirection = "asc" | "desc";
+
+function MobileSortBar({ sortColumn, sortDirection, onSort }: {
+  sortColumn: SortColumn;
+  sortDirection: SortDirection;
+  onSort: (col: SortColumn) => void;
+}) {
+  const btn = (col: SortColumn, label: string) => {
+    const active = sortColumn === col;
+    const cls = active ? "chip-on" : "chip hover:text-ink";
+    const indicator = active ? (sortDirection === "desc" ? " ↓" : " ↑") : "";
+    return (
+      <button type="button" className={cls} onClick={() => onSort(col)}>
+        {label}{indicator}
+      </button>
+    );
+  };
+  return (
+    <div className="flex gap-1.5 border border-hairline bg-surface p-2 text-[11px] sm:hidden">
+      {btn("heat", "HEAT")}
+      {btn("liq", "LIQ")}
+      {btn("vol1h", "1H")}
+      {btn("buyPct", "BUY%")}
+    </div>
+  );
+}
 
 export function RadarBoard() {
   const { filters, setFilters } = useRadarFilters();
@@ -33,7 +58,6 @@ export function RadarBoard() {
   );
   
   const { lanes, tableRows } = useMemo(() => {
-    // Merge all filtered rows and sort with sortLane (no extras append)
     const allRows = sortLane(filtered);
     const lanes = splitLanes(filtered);
     return { lanes, tableRows: allRows };
@@ -75,26 +99,10 @@ export function RadarBoard() {
     }
   };
 
-  const b = data?.banners;
-  const hiddenLabel = hiddenUnderLabel(filters.ageGate);
-  const hiddenN = b?.hiddenUnderAge ?? 0;
   const bookCount = lanes.BOOK.length;
 
   return (
     <div className="space-y-3">
-      <div>
-        <div className="text-[11px] tracking-[0.18em] text-gold">{COPY.newNames}</div>
-        <h1 className="text-sm tracking-[0.14em] text-ink">{COPY.top}</h1>
-        <p className="max-w-3xl text-[11px] text-mute">{COPY.topBody}</p>
-      </div>
-      {b ? (
-        <div className="space-y-1 text-[11px] text-gold/90">
-          {b.factoryBeforeDex > 0 ? <div>{b.factoryBeforeDex} factory launches shown before Dex indexed a pair.</div> : null}
-          {b.mergedFromSnapshot > 0 ? <div>Merged {b.mergedFromSnapshot} Pons/O1/Base rows from previous snapshot.</div> : null}
-          <div>{hiddenN} hidden under {hiddenLabel}</div>
-          {data?.stale && b.staleAgoSec != null ? <div>STALE · last success {b.staleAgoSec}s ago</div> : null}
-        </div>
-      ) : null}
       <FilterBar
         filters={filters}
         setFilters={setFilters}
@@ -105,9 +113,6 @@ export function RadarBoard() {
       {!isLoading && filtered.length === 0 ? (
         <div className="border border-hairline bg-surface px-4 py-10 text-center text-[12px] text-mute">
           {data?.stale ? "STALE · empty board. Adapters missed or Dex is down." : "No live rows. Empty is valid. LINE never invents tokens."}
-          {hiddenN > 0 ? (
-            <div className="mt-2 text-gold/90">{hiddenN} hidden under {hiddenLabel}</div>
-          ) : null}
         </div>
       ) : null}
       <div className="flex gap-3 font-mono text-[11px] tabular text-mute">
@@ -115,6 +120,7 @@ export function RadarBoard() {
         <span>STRETCH {lanes.STRETCH.length}</span>
         <span>BOOK {bookCount}</span>
       </div>
+      <MobileSortBar sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleColumnSort} />
       {filtered.length > 0 ? (
         <RadarTable
           rows={sortedRows}
