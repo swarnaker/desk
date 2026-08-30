@@ -11,11 +11,11 @@ function riskColor(label: string) {
   return "text-gold";
 }
 
-function riskLabel(row: TokenRow): string {
+function riskLabel(row: TokenRow): string | null {
   const top10Known = row.top10Pct != null && Number.isFinite(row.top10Pct);
+  if (!top10Known && row.risk.flags.some((f) => f.toUpperCase() === "UNK")) return null;
   if (row.risk.level === "RED") return "RED";
   if (row.risk.level === "GREEN") return "GREEN";
-  if (!top10Known && row.risk.flags.some((f) => f.toUpperCase() === "UNK")) return "UNK";
   return "AMBER";
 }
 
@@ -47,9 +47,10 @@ function RadarCard({ row, watched, onWatch }: { row: TokenRow; watched: boolean;
             <span>{formatAge(row.ageSec)}</span>
           </div>
         </div>
+        {/* Mobile heat/risk */}
         <div className="shrink-0 text-right font-mono text-[11px] tabular">
           <div className="text-base font-medium">{row.heat}</div>
-          <div className={"text-[10px] " + riskColor(riskLabel(row))}>{riskLabel(row)}</div>
+          {riskLabel(row) ? <div className={"text-[10px] " + riskColor(riskLabel(row)!)}>{riskLabel(row)}</div> : null}
         </div>
       </div>
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] tabular text-mute">
@@ -96,7 +97,7 @@ export function RadarRowView({ row, watched, onWatch }: { row: TokenRow; watched
         {phys.secondary ? <span className="ml-1 text-[10px] text-mute">{phys.secondary}</span> : null}
       </td>
       <td className="whitespace-nowrap px-2 font-mono tabular">{row.heat}</td>
-      <td className={"whitespace-nowrap px-2 " + riskColor(riskLabel(row))} title={row.risk.flags.join(", ") || undefined}>{riskLabel(row)}</td>
+      <td className={"whitespace-nowrap px-2 " + (riskLabel(row) ? riskColor(riskLabel(row)!) : "")} title={row.risk.flags.join(", ") || undefined}>{riskLabel(row) || EM}</td>
       <td className="whitespace-nowrap px-2 font-mono tabular">{formatUsd(row.mcapUsd)}</td>
       <td className="whitespace-nowrap px-2 font-mono tabular">{formatUsd(row.liqUsd)}</td>
       <td className="whitespace-nowrap px-2 font-mono tabular">{formatUsd(row.vol1hUsd)}</td>

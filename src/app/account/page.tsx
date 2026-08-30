@@ -6,9 +6,20 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useWatch } from "@/hooks/useWatch";
 import { HealthFooter } from "@/components/HealthFooter";
+import { useRadarFilters } from "@/hooks/useRadarFilters";
+import { LINE_EARLY_CHIP } from "@/lib/line/uiLabels";
+
+function Chip({ on, children, onClick }: { on: boolean; children: React.ReactNode; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className={"chip " + (on ? "chip-on" : "hover:text-ink")}>
+      {children}
+    </button>
+  );
+}
 
 export default function AccountPage() {
   const watch = useWatch();
+  const { filters, setFilters } = useRadarFilters();
   const watchedIds = watch.file.items.map((i) => i.chain + ":" + i.ca);
   
   const { data } = useQuery({
@@ -32,6 +43,8 @@ export default function AccountPage() {
   const hiddenLabel = hiddenUnderLabel("6h");
   const hiddenN = b?.hiddenUnderAge ?? 0;
   const copiesHidden = data?.banners?.sameNameCopiesHidden ?? 0;
+  
+  const set = (p: Partial<typeof filters>) => setFilters({ ...filters, ...p });
 
   return (
     <div className="space-y-6 pb-20">
@@ -68,6 +81,19 @@ export default function AccountPage() {
 
       <div className="font-mono text-xs tabular text-mute">
         Watch {watch.file.items.length}
+      </div>
+
+      <div>
+        <h2 className="mb-2 text-sm tracking-[0.14em] text-ink">More filters</h2>
+        <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+          <Chip on={filters.pad === "VIRTUALS"} onClick={() => set({ pad: "VIRTUALS" })}>Virtuals</Chip>
+          <Chip on={filters.pad === "CLANKER"} onClick={() => set({ pad: "CLANKER" })}>Clanker</Chip>
+          <Chip on={filters.pad === "PUMP"} onClick={() => set({ pad: "PUMP" })}>Pump</Chip>
+          <span className="mx-1 text-hairline">|</span>
+          <Chip on={filters.curve} onClick={() => set({ curve: !filters.curve })}>Curve</Chip>
+          <Chip on={filters.birthOnly} onClick={() => set({ birthOnly: !filters.birthOnly })}>BIRTH</Chip>
+        </div>
+        <p className="mt-2 text-[11px] text-mute">These filters work with Radar. Click to apply, then visit Radar to see results.</p>
       </div>
 
       <HealthFooter signedIn={true} page="account" />

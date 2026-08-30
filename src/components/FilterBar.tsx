@@ -11,13 +11,10 @@ function Chip({ on, children, onClick }: { on: boolean; children: React.ReactNod
   );
 }
 
-const PADS: { id: "PONS" | "O1" | "BOTH" | "VIRTUALS" | "CLANKER" | "PUMP"; label: string }[] = [
+const PADS: { id: "PONS" | "O1" | "BOTH"; label: string }[] = [
   { id: "PONS", label: "Pons" },
   { id: "O1", label: "O1" },
   { id: "BOTH", label: "Both" },
-  { id: "VIRTUALS", label: "Virtuals" },
-  { id: "CLANKER", label: "Clanker" },
-  { id: "PUMP", label: "Pump" },
 ];
 
 const AGES: { id: AgeGate; label: string }[] = [
@@ -49,12 +46,10 @@ export function FilterBar({
           </Chip>
         ))}
         <span className="mx-1 text-hairline">|</span>
-        <Chip on={filters.curve} onClick={() => set({ curve: !filters.curve })}>Curve</Chip>
-        <Chip on={filters.birthOnly} onClick={() => set({ birthOnly: !filters.birthOnly })}>BIRTH</Chip>
-        <Chip on={filters.wakeOnly} onClick={() => set({ wakeOnly: !filters.wakeOnly, early: false })}>WAKE</Chip>
-        <Chip on={!!filters.early} onClick={() => set({ early: !filters.early, wakeOnly: filters.early ? filters.wakeOnly : false })}>
+        <Chip on={!!filters.early} onClick={() => set({ early: !filters.early, wakeOnly: false })}>
           <span id="line-early" data-line="early" aria-label={LINE_EARLY_CHIP}>{LINE_EARLY_CHIP}</span>
         </Chip>
+        <Chip on={filters.wakeOnly} onClick={() => set({ wakeOnly: !filters.wakeOnly, early: false })}>WAKE</Chip>
         <Chip on={filters.watchOnly} onClick={() => set({ watchOnly: !filters.watchOnly })}>Watch {watchCount}</Chip>
         <button type="button" className="chip hover:text-ink" onClick={() => setFilters(DEFAULT_FILTERS)}>Reset</button>
       </div>

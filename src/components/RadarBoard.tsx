@@ -121,7 +121,6 @@ export function RadarBoard() {
       ) : null}
       <div className="flex gap-3 font-mono text-[11px] tabular text-mute">
         <span>NEW {lanes.NEW.length}</span>
-        <span>STRETCH {lanes.STRETCH.length}</span>
         <span>BOOK {bookCount}</span>
       </div>
       <MobileSortBar sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleColumnSort} />
