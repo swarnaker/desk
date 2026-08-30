@@ -65,6 +65,10 @@ export function pairMakers(pair?: DexPair | null): {
   };
 }
 
+const CACHE_MS = 5 * 60 * 1000;
+type CachePack<T> = { data: T; at: number };
+const searchCache = new Map<string, CachePack<DexPair[]>>();
+
 function dsBase(): string {
   return (process.env.DEXSCREENER_BASE_URL || "https://api.dexscreener.com").replace(/\/$/, "");
 }
@@ -90,11 +94,22 @@ async function dsGet<T>(path: string, source: string): Promise<{ data: T | null;
 }
 
 export async function fetchDexSearch(q: string): Promise<{ items: DexPair[]; health: HealthSource }> {
+  const name = "DexScreener search " + q;
+  const cached = searchCache.get(q);
+  if (cached && Date.now() - cached.at < CACHE_MS) {
+    return { items: cached.data, health: { name, ok: true, hits: 1, attempts: 1, ms: 0, detail: cached.data.length + " pairs (cached)" } };
+  }
   const { data, health } = await dsGet<{ pairs?: DexPair[] | null }>(
     "/latest/dex/search?q=" + encodeURIComponent(q),
-    "DexScreener search " + q,
+    name,
   );
-  return { items: data?.pairs || [], health };
+  const items = data?.pairs || [];
+  if (health.ok && items.length) {
+    searchCache.set(q, { data: items, at: Date.now() });
+  } else if (cached) {
+    return { items: cached.data, health: { name, ok: false, hits: 0, attempts: 1, ms: health.ms, detail: "timeout; serving cache (" + cached.data.length + " pairs)" } };
+  }
+  return { items, health };
 }
 
 export async function fetchTokenPairs(chainId: string, token: string): Promise<{ items: DexPair[]; health: HealthSource }> {
