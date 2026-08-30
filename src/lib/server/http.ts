@@ -13,7 +13,7 @@ export class SourceError extends Error {
 export async function fetchJson<T>(
   url: string,
   source: string,
-  timeoutMs = 12000,
+  timeoutMs = 4000,
 ): Promise<{ data: T; health: HealthSource }> {
   const t0 = Date.now();
   const ctrl = new AbortController();

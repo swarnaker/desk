@@ -42,7 +42,7 @@ async function rpc<T>(url: string, method: string, params: unknown[], source: st
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-    signal: AbortSignal.timeout(12000),
+    signal: AbortSignal.timeout(4000),
     cache: "no-store",
   });
   const json = (await res.json()) as { result?: T; error?: { message?: string } };
@@ -141,7 +141,7 @@ async function harvestPonsBitquery(key: string, name: string): Promise<{ launche
       method: "POST",
       headers: { "content-type": "application/json", Authorization: "Bearer " + key },
       body: JSON.stringify({ query: q }),
-      signal: AbortSignal.timeout(12000),
+      signal: AbortSignal.timeout(4000),
     });
     if (!res.ok) throw new Error("Bitquery HTTP " + res.status);
     return { launches: [], health: { name, ok: true, hits: 1, attempts: 1, ms: Date.now() - t0, detail: "bitquery (no RH network — empty)" } };

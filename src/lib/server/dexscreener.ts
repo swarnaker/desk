@@ -76,7 +76,7 @@ async function dsGet<T>(path: string, source: string): Promise<{ data: T | null;
     const res = await fetch(url, {
       headers: { accept: "application/json", "user-agent": "line-radar/1.0" },
       cache: "no-store",
-      signal: AbortSignal.timeout(12000),
+      signal: AbortSignal.timeout(4000),
     });
     const ms = Date.now() - t0;
     if (!res.ok) {

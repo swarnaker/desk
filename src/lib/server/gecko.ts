@@ -6,6 +6,8 @@ export type GeckoPool = { address: string; name?: string; createdAt?: number };
 
 const GECKO_NEW = "https://api.geckoterminal.com/api/v2/networks/base/new_pools?page=1";
 
+let lastGoodGecko: GeckoPool[] = [];
+
 export async function fetchGeckoBaseNew(): Promise<{ items: GeckoPool[]; health: HealthSource }> {
   const t0 = Date.now();
   const source = "GeckoTerminal Base new";
@@ -13,7 +15,7 @@ export async function fetchGeckoBaseNew(): Promise<{ items: GeckoPool[]; health:
     const res = await fetch(GECKO_NEW, {
       headers: { accept: "application/json", "user-agent": "line-radar/1.0" },
       cache: "no-store",
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(4000),
     });
     const ms = Date.now() - t0;
     if (!res.ok) {
@@ -38,8 +40,9 @@ export async function fetchGeckoBaseNew(): Promise<{ items: GeckoPool[]; health:
         createdAt: Number.isFinite(created) ? created : undefined,
       });
     }
+    lastGoodGecko = items;
     return { items, health: { name: source, ok: true, hits: 1, attempts: 1, ms, detail: items.length + " pools" } };
   } catch (err) {
-    return { items: [], health: fail(source, err, t0) };
+    return { items: lastGoodGecko, health: fail(source, err, t0) };
   }
 }
