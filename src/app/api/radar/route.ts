@@ -22,7 +22,9 @@ export async function GET(req: Request) {
     const watched = parseWatchedQuery(url.searchParams.get("watched"));
     const pad = parsePadParam(url.searchParams.get("pad"));
     const early = parseEarlyParam(url.searchParams.get("early"));
-    const data = await listRadar({ ageGate, curve, watched, pad, early });
+    const wake = url.searchParams.get("wake") === "1";
+    const birth = url.searchParams.get("birth") === "1";
+    const data = await listRadar({ ageGate, curve, watched, pad, early, wake, birth });
     return NextResponse.json({ ...data, on_curve: curve ? 1 : 0, health: attachPayboxHealth(attachTelegramHealth(data.health)) });
   } catch (err) {
     const snap = getSnapshot();

@@ -48,8 +48,8 @@ export function FilterBar({
       <span className="mx-1 text-hairline">|</span>
       <Chip on={filters.curve} onClick={() => set({ curve: !filters.curve })}>Curve</Chip>
       <Chip on={filters.birthOnly} onClick={() => set({ birthOnly: !filters.birthOnly })}>BIRTH</Chip>
-      <Chip on={filters.wakeOnly} onClick={() => set({ wakeOnly: !filters.wakeOnly })}>WAKE</Chip>
-      <Chip on={!!filters.early} onClick={() => set({ early: !filters.early })}>
+      <Chip on={filters.wakeOnly} onClick={() => set({ wakeOnly: !filters.wakeOnly, early: false })}>WAKE</Chip>
+      <Chip on={!!filters.early} onClick={() => set({ early: !filters.early, wakeOnly: filters.early ? filters.wakeOnly : false })}>
         <span id="line-early" data-line="early" aria-label={LINE_EARLY_CHIP}>{LINE_EARLY_CHIP}</span>
       </Chip>
       <Chip on={filters.watchOnly} onClick={() => set({ watchOnly: !filters.watchOnly })}>Watch {watchCount}</Chip>

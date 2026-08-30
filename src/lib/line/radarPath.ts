@@ -21,14 +21,32 @@ export function parseEarlyParam(raw: string | null | undefined): boolean {
   return raw === "1";
 }
 
+export function parseWakeParam(raw: string | null | undefined): boolean {
+  return raw === "1";
+}
+
+export function parseBirthParam(raw: string | null | undefined): boolean {
+  return raw === "1";
+}
+
 /** Default 6h omits the age query so GET /api/radar matches the UI default. */
-export function radarApiPath(ageGate: AgeGate, curve: boolean, watchedIds: string[], pad?: string, early?: boolean): string {
+export function radarApiPath(
+  ageGate: AgeGate,
+  curve: boolean,
+  watchedIds: string[],
+  pad?: string,
+  early?: boolean,
+  wake?: boolean,
+  birth?: boolean
+): string {
   const p = new URLSearchParams();
   if (curve) p.set("curve", "1");
   if (ageGate === "any" || ageGate === "1h" || ageGate === "2h") p.set("age", ageGate);
   if (watchedIds.length) p.set("watched", watchedIds.join(","));
   if (pad === "PONS" || pad === "O1" || pad === "PUMP" || pad === "BASE") p.set("pad", pad);
   if (early) p.set("early", "1");
+  if (wake) p.set("wake", "1");
+  if (birth) p.set("birth", "1");
   const q = p.toString();
   return q ? "/api/radar?" + q : "/api/radar";
 }
