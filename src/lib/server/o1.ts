@@ -84,7 +84,7 @@ async function fetchO1Sort(
       "x-api-key": key,
     },
     cache: "no-store",
-    signal: AbortSignal.timeout(12000),
+    signal: AbortSignal.timeout(4000),
   });
   if (res.status === 401) throw new Error("unauthorized");
   if (!res.ok) throw new Error("HTTP " + res.status);
