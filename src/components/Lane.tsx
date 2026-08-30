@@ -77,11 +77,19 @@ export function RadarRowView({ row, watched, onWatch }: { row: TokenRow; watched
   );
 }
 
-export function RadarTable({ rows, watched, onWatch }: {
+export function RadarTable({ rows, watched, onWatch, sortColumn, sortDirection, onSort }: {
   rows: TokenRow[];
   watched: (ca: string, chain: TokenRow["chain"]) => boolean;
   onWatch: (row: TokenRow) => void;
+  sortColumn: "heat" | "liq" | "vol1h" | "buyPct" | null;
+  sortDirection: "asc" | "desc";
+  onSort: (column: "heat" | "liq" | "vol1h" | "buyPct") => void;
 }) {
+  const sortIndicator = (col: "heat" | "liq" | "vol1h" | "buyPct") => {
+    if (sortColumn !== col) return "";
+    return sortDirection === "desc" ? " ↓" : " ↑";
+  };
+
   return (
     <section className="border border-hairline bg-surface">
       <div className="max-w-full overflow-x-auto">
@@ -93,12 +101,20 @@ export function RadarTable({ rows, watched, onWatch }: {
               <th className="whitespace-nowrap px-2 py-1.5 font-normal">CA</th>
               <th className="whitespace-nowrap px-2 py-1.5 font-normal">Pad</th>
               <th className="whitespace-nowrap px-2 py-1.5 font-normal">Physics</th>
-              <th className="whitespace-nowrap px-2 py-1.5 font-normal">Heat</th>
+              <th className="whitespace-nowrap px-2 py-1.5 font-normal cursor-pointer hover:text-gold" onClick={() => onSort("heat")}>
+                Heat{sortIndicator("heat")}
+              </th>
               <th className="whitespace-nowrap px-2 py-1.5 font-normal">Risk</th>
               <th className="whitespace-nowrap px-2 py-1.5 font-normal">Mcap</th>
-              <th className="whitespace-nowrap px-2 py-1.5 font-normal">Liq</th>
-              <th className="whitespace-nowrap px-2 py-1.5 font-normal">1h vol</th>
-              <th className="whitespace-nowrap px-2 py-1.5 font-normal">Buy%</th>
+              <th className="whitespace-nowrap px-2 py-1.5 font-normal cursor-pointer hover:text-gold" onClick={() => onSort("liq")}>
+                Liq{sortIndicator("liq")}
+              </th>
+              <th className="whitespace-nowrap px-2 py-1.5 font-normal cursor-pointer hover:text-gold" onClick={() => onSort("vol1h")}>
+                1h vol{sortIndicator("vol1h")}
+              </th>
+              <th className="whitespace-nowrap px-2 py-1.5 font-normal cursor-pointer hover:text-gold" onClick={() => onSort("buyPct")}>
+                Buy%{sortIndicator("buyPct")}
+              </th>
               <th className="whitespace-nowrap px-2 py-1.5 font-normal">Age</th>
               <th className="whitespace-nowrap px-2 py-1.5 font-normal">Stage</th>
               <th className="whitespace-nowrap px-2 py-1.5 font-normal">Links</th>
