@@ -4,6 +4,7 @@ import type { HealthSource, RadarPayload } from "@/lib/line/types";
 import { hiddenUnderLabel, radarApiPath } from "@/lib/line/radarPath";
 import { useRadarFiltersOptional } from "@/hooks/useRadarFilters";
 import { useWatch } from "@/hooks/useWatch";
+import { useState } from "react";
 
 function findSrc(sources: HealthSource[], ...needles: string[]): HealthSource | undefined {
   return sources.find((s) => {
@@ -36,6 +37,8 @@ export function HealthFooter({ signedIn = false }: { signedIn?: boolean }) {
   const early = ctx?.filters.early ?? false;
   const watch = useWatch();
   const watchedIds = watch.file.items.map((i) => i.chain + ":" + i.ca);
+  const [mobileExpanded, setMobileExpanded] = useState(false);
+  
   const { data } = useQuery({
     queryKey: ["radar", ageGate, curve, watchedIds.join(","), pad, early],
     queryFn: async () => {
@@ -49,7 +52,6 @@ export function HealthFooter({ signedIn = false }: { signedIn?: boolean }) {
   const sources = data?.health?.sources ?? [];
   const pump = findSrc(sources, "pumpfun") || findSrc(sources, "DexScreener");
   const catalog = findSrc(sources, "graduated catalog") || findSrc(sources, "pons catalog");
-  // Factory line is V1+V2+o1 factory only. Catalog success must not claim factory is on.
   const facs = sources.filter((s) => /factory/i.test(s.name) && !/catalog/i.test(s.name));
   const facHits = facs.reduce((a, s) => a + s.hits, 0);
   const facAtt = facs.reduce((a, s) => a + s.attempts, 0);
@@ -63,12 +65,34 @@ export function HealthFooter({ signedIn = false }: { signedIn?: boolean }) {
   const tgLine = tg?.ok ? "telegram" : "telegram not wired";
 
   return (
-    <footer className="fixed bottom-0 left-0 right-0 border-t border-hairline bg-bg/95 px-3 py-1.5 font-mono text-[11px] tabular text-mute">
-      <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-2">
-        <span>
-          {bit("Dex pumpfun", pump)} · {bit("pons catalog", catalog)} · {factoryLine} · {tgLine} · paybox draft only · last success {ago(data?.lastSuccessAt)}
-        </span>
-        <span className="text-[10px]">{data?.stale ? "STALE" : "live"} · {(data?.tokens ?? []).length} rows · {hiddenN} hidden under {hiddenLabel}{pad === "PONS" && (data?.banners?.ponsBooksByMcap ?? 0) > 0 ? ` · ${data?.banners?.ponsBooksByMcap} pons books included by mcap` : ""}</span>
+    <footer className="fixed bottom-0 left-0 right-0 border-t border-hairline bg-bg/95 font-mono text-[11px] tabular text-mute">
+      {/* Desktop footer */}
+      <div className="hidden px-3 py-1.5 sm:block">
+        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-2">
+          <span>
+            {bit("Dex pumpfun", pump)} · {bit("pons catalog", catalog)} · {factoryLine} · {tgLine} · paybox draft only · last success {ago(data?.lastSuccessAt)}
+          </span>
+          <span className="text-[10px]">{data?.stale ? "STALE" : "live"} · {(data?.tokens ?? []).length} rows · {hiddenN} hidden under {hiddenLabel}{pad === "PONS" && (data?.banners?.ponsBooksByMcap ?? 0) > 0 ? ` · ${data?.banners?.ponsBooksByMcap} pons books included by mcap` : ""}</span>
+        </div>
+      </div>
+      
+      {/* Mobile footer */}
+      <div className="block px-3 py-1.5 sm:hidden">
+        <button
+          type="button"
+          onClick={() => setMobileExpanded(!mobileExpanded)}
+          className="w-full text-left text-[10px]"
+        >
+          {data?.stale ? "STALE" : "live"} · {(data?.tokens ?? []).length} rows · {mobileExpanded ? "▲" : "▼"}
+        </button>
+        {mobileExpanded ? (
+          <div className="mt-1 space-y-0.5 text-[10px]">
+            <div>{bit("Dex", pump)}</div>
+            <div>{bit("catalog", catalog)}</div>
+            <div>{factoryLine}</div>
+            <div>last {ago(data?.lastSuccessAt)}</div>
+          </div>
+        ) : null}
       </div>
     </footer>
   );

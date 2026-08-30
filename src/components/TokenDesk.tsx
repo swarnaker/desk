@@ -62,18 +62,31 @@ export function TokenDesk() {
   const clones = collectClones(t, radarQ.data?.tokens || []);
   return (
     <div className="space-y-4">
+      {/* Mobile sticky controls */}
+      <div className="sticky top-0 z-10 flex justify-end gap-1 border-b border-hairline bg-bg/95 p-2 backdrop-blur sm:hidden">
+        <button type="button" className={"chip " + (watched ? "chip-on" : "")} onClick={() => watch.toggle(t.chain, t.ca)}>{watched ? "WATCHED" : "WATCH"}</button>
+        <button type="button" className="chip" onClick={() => watch.markFirst(t.chain, t.ca)}>FIRST</button>
+        <ProposeDraft row={t} />
+      </div>
+      
       <div className="flex flex-wrap items-start justify-between gap-3 border border-hairline bg-surface p-4">
         <div>
           <div className="text-[11px] tracking-[0.2em] text-gold">{t.pad} · {t.lane} · {t.stage} · {deskOrganicBadge(t.boostsActive) || EM}</div>
           <h1 className="text-xl text-ink">{t.symbol} <span className="text-mute">{t.name}</span></h1>
           <div className="mt-1 break-all font-mono text-[11px] text-mute"><CopyCa ca={t.ca} display={t.ca} className="break-all font-mono text-[11px] text-mute" /></div>
         </div>
-        <div className="text-right font-mono tabular">
+        {/* Desktop controls */}
+        <div className="hidden text-right font-mono tabular sm:block">
           <div>heat {t.heat}</div>
           <div className={t.risk.level === "RED" ? "text-sell" : t.risk.level === "AMBER" ? "text-gold" : "text-live"}>{t.risk.level}</div>
           <button type="button" className={"mt-2 chip " + (watched ? "chip-on" : "")} onClick={() => watch.toggle(t.chain, t.ca)}>{watched ? "WATCHED" : "WATCH"}</button>
           <button type="button" className="ml-1 chip" onClick={() => watch.markFirst(t.chain, t.ca)}>FIRST</button>
           <ProposeDraft row={t} />
+        </div>
+        {/* Mobile heat/risk */}
+        <div className="block text-right font-mono tabular sm:hidden">
+          <div>heat {t.heat}</div>
+          <div className={t.risk.level === "RED" ? "text-sell" : t.risk.level === "AMBER" ? "text-gold" : "text-live"}>{t.risk.level}</div>
         </div>
       </div>
       <div className="grid gap-3 md:grid-cols-3">
@@ -181,6 +194,7 @@ function recordPropose(chain: string, ca: string, now = Date.now()) {
 
 function ProposeDraft({ row }: { row: TokenRow }) {
   const [draft, setDraft] = useState<string | null>(null);
+  const [showDraft, setShowDraft] = useState(false);
   const [cooled, setCooled] = useState(false);
   useEffect(() => {
     setCooled(isProposeCooling(row.chain, row.ca));
@@ -209,10 +223,29 @@ function ProposeDraft({ row }: { row: TokenRow }) {
         {LINE_PROPOSE_LABEL}
       </button>
       {draft ? (
-        <section className="mt-3 w-full max-w-sm border border-hairline bg-surface p-3 text-left">
-          <h2 className="mb-2 text-[11px] tracking-[0.2em] text-gold">PAYBOX DRAFT</h2>
-          <pre className="whitespace-pre-wrap break-all font-mono text-[11px] text-ink">{draft}</pre>
-        </section>
+        <>
+          {/* Desktop: auto-shown */}
+          <section className="mt-3 hidden w-full max-w-sm border border-hairline bg-surface p-3 text-left sm:block">
+            <h2 className="mb-2 text-[11px] tracking-[0.2em] text-gold">PAYBOX DRAFT</h2>
+            <pre className="whitespace-pre-wrap break-all font-mono text-[11px] text-ink">{draft}</pre>
+          </section>
+          {/* Mobile: behind toggle */}
+          <div className="mt-3 block sm:hidden">
+            <button
+              type="button"
+              className="chip"
+              onClick={() => setShowDraft(!showDraft)}
+            >
+              {showDraft ? "Hide draft" : "Copy draft"}
+            </button>
+            {showDraft ? (
+              <section className="mt-2 w-full border border-hairline bg-surface p-3 text-left">
+                <h2 className="mb-2 text-[11px] tracking-[0.2em] text-gold">PAYBOX DRAFT</h2>
+                <pre className="whitespace-pre-wrap break-all font-mono text-[11px] text-ink">{draft}</pre>
+              </section>
+            ) : null}
+          </div>
+        </>
       ) : null}
     </>
   );
