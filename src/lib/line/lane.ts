@@ -136,12 +136,9 @@ export function isTapePrint(row: TokenRow): boolean {
   return false;
 }
 
-/** Tape printers first, then movers / RED, then heat desc, then vol1hUsd desc. */
+/** Movers first, then heat desc, then vol1hUsd desc. */
 export function sortLane(rows: TokenRow[]): TokenRow[] {
   return [...rows].sort((a, b) => {
-    const aPrint = isTapePrint(a) ? 1 : 0;
-    const bPrint = isTapePrint(b) ? 1 : 0;
-    if (aPrint !== bPrint) return bPrint - aPrint;
     const aGreenMover = a.moving && a.risk.level === "GREEN" ? 1 : 0;
     const bGreenMover = b.moving && b.risk.level === "GREEN" ? 1 : 0;
     if (aGreenMover !== bGreenMover) return bGreenMover - aGreenMover;

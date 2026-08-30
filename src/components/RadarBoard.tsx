@@ -1,7 +1,7 @@
 "use client";
 import { COPY } from "@/lib/line/constants";
 import { applyFilters, isPonsMcapExtra } from "@/lib/line/filters";
-import { splitLanes } from "@/lib/line/lane";
+import { sortLane, splitLanes } from "@/lib/line/lane";
 import { hiddenUnderLabel, radarApiPath } from "@/lib/line/radarPath";
 import type { RadarPayload, TokenRow } from "@/lib/line/types";
 import { useQuery } from "@tanstack/react-query";
@@ -30,9 +30,9 @@ export function RadarBoard() {
       const extras = filtered.filter((r) => isPonsMcapExtra(r, filters, watch.ids));
       const extraIds = new Set(extras.map((r) => r.id));
       const movers = filtered.filter((r) => !extraIds.has(r.id));
-      extras.sort((a, b) => (b.mcapUsd ?? 0) - (a.mcapUsd ?? 0));
       const lanes = splitLanes(movers);
-      return { lanes, extras, tableRows: [...lanes.NEW, ...lanes.STRETCH, ...lanes.BOOK, ...extras] };
+      const sortedExtras = sortLane(extras);
+      return { lanes, extras: sortedExtras, tableRows: [...lanes.NEW, ...lanes.STRETCH, ...lanes.BOOK, ...sortedExtras] };
     }
     const lanes = splitLanes(filtered);
     return { lanes, extras: [] as TokenRow[], tableRows: [...lanes.NEW, ...lanes.STRETCH, ...lanes.BOOK] };
