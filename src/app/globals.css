@@ -60,6 +60,11 @@ body {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
+  
+  /* Mobile body padding for sticky footer */
+  body {
+    padding-bottom: 48px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
