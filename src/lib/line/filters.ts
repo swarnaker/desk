@@ -106,6 +106,7 @@ export function rowIsStretch(row: TokenRow): boolean {
 /**
  * Hidden unless ageSec >= minAge, OR (Curve chip on AND Pons/Pump stretch fill >= 0.70),
  * OR watched / markFirst (client watch set). Stretch does NOT punch the default board.
+ * HIGH-HEAT EXCEPTION: heat >= 320 AND risk not RED AND not ON_CURVE AND (uniqueBuyers1h >= 10 OR vol1hUsd >= 2000)
  */
 export function passesAgeGate(
   row: TokenRow,
@@ -117,6 +118,15 @@ export function passesAgeGate(
   if (f.ageGate === "any") return true;
   // Missing age only if survived locked major (BOOK).
   if (row.ageSec == null) return row.lane === "BOOK" && isSurvived(row);
+  // HIGH-HEAT EXCEPTION: bypass age gate for hot rows with activity
+  if (
+    row.heat >= 320 &&
+    row.risk.level !== "RED" &&
+    !isOnCurve(row) &&
+    ((row.uniqueBuyers1h != null && row.uniqueBuyers1h >= 10) || (row.vol1hUsd != null && row.vol1hUsd >= 2000))
+  ) {
+    return true;
+  }
   return row.ageSec >= minAgeSec(f.ageGate);
 }
 

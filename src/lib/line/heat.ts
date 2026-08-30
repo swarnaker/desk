@@ -33,9 +33,11 @@ export function heatScore(input: HeatInput): number {
   if (input.bundlePct != null && input.bundlePct > 40) raw -= 30;
   if (input.sniperPct != null && input.sniperPct > 40) raw -= 30;
 
+  // Clamp to 0-400 max (never exceed 400)
   let heat = Math.round(clamp(raw, 0, 400));
   if (input.riskLevel === "RED") heat = Math.min(heat, 180);
-  return heat;
+  // Final clamp ensures heat never exceeds 400
+  return Math.min(heat, 400);
 }
 
 export function isMoving(vol1hUsd?: number, buyPct?: number, liqUsd?: number, ageSec?: number): boolean {
