@@ -7,28 +7,24 @@ const CACHE_MS = 5 * 60 * 1000;
 type CachePack = { launches: FactoryLaunch[]; health: HealthSource; at: number };
 let lastGood: CachePack | null = null;
 
+// Stock tickers used as quote tokens on app.long.xyz
+const STOCK_QUOTES = ["NVDA", "AAPL", "TSLA", "MSTR", "MU", "SPCX", "TSM", "MSFT", "GOOGL", "PLTR", "HIMS", "INTC", "GLD", "AI", "DJT"];
+
 function mapChainId(chainId?: string): "robinhood" | null {
   if (chainId === "robinhood" || chainId === "4663") return "robinhood";
   return null;
 }
 
-function isLongLabeled(pair?: DexPair | null): boolean {
+function isStockQuoted(pair?: DexPair | null): boolean {
   if (!pair) return false;
-  const labels = pair.labels || [];
-  return labels.some((l) => {
-    const lower = l.toLowerCase();
-    return lower === "long" || lower === "long.xyz" || lower === "bankr";
-  });
+  const quoteSymbol = (pair.quoteToken?.symbol || "").toUpperCase();
+  return STOCK_QUOTES.includes(quoteSymbol);
 }
 
-function hasLivePair(pair?: DexPair | null): boolean {
+function isQuoteAssetItself(pair?: DexPair | null): boolean {
   if (!pair) return false;
-  const quoteSymbol = pair.quoteToken?.symbol?.toLowerCase() || "";
-  // Stock tokens or $AI quote
-  const stocks = ["nvda", "aapl", "tsla", "djt", "spy", "qqq", "btc", "eth"];
-  if (stocks.includes(quoteSymbol)) return true;
-  if (quoteSymbol === "ai") return true;
-  return false;
+  const baseSymbol = (pair.baseToken?.symbol || "").toUpperCase();
+  return STOCK_QUOTES.includes(baseSymbol);
 }
 
 function pairToLaunch(pair: DexPair): FactoryLaunch | null {
@@ -37,8 +33,8 @@ function pairToLaunch(pair: DexPair): FactoryLaunch | null {
   const token = pair.baseToken?.address;
   if (!token) return null;
   
-  if (!isLongLabeled(pair)) return null;
-  if (!hasLivePair(pair)) return null;
+  if (!isStockQuoted(pair)) return null;
+  if (isQuoteAssetItself(pair)) return null;
 
   return {
     token,
@@ -69,29 +65,37 @@ export async function harvestLongXyz(): Promise<{ launches: FactoryLaunch[]; hea
   const source = "longxyz";
   
   try {
-    // Search DexScreener for long-labeled pairs on robinhood
-    const { items } = await fetchDexSearch("long");
-    
+    // Search DexScreener robinhood for stock-quoted pairs
     const launches: FactoryLaunch[] = [];
     const seen = new Set<string>();
     
-    for (const pair of items) {
-      const chain = mapChainId(pair.chainId);
-      if (chain !== "robinhood") continue;
-      
-      const launch = pairToLaunch(pair);
-      if (!launch) continue;
-      const key = `${launch.chain}:${launch.token.toLowerCase()}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      launches.push(launch);
-    }
+    // Search for each stock ticker as quote token
+    const searchJobs = STOCK_QUOTES.map(async (ticker) => {
+      try {
+        const { items } = await fetchDexSearch(ticker);
+        for (const pair of items) {
+          const chain = mapChainId(pair.chainId);
+          if (chain !== "robinhood") continue;
+          
+          const launch = pairToLaunch(pair);
+          if (!launch) continue;
+          const key = launch.token.toLowerCase();
+          if (seen.has(key)) continue;
+          seen.add(key);
+          launches.push(launch);
+        }
+      } catch {
+        // Skip failed searches
+      }
+    });
+    
+    await Promise.all(searchJobs);
     
     const ms = Date.now() - t0;
     const health: HealthSource = {
       name: source,
       ok: true,
-      hits: 1,
+      hits: launches.length > 0 ? 1 : 0,
       attempts: 1,
       ms,
       detail: `${launches.length} long pairs`,
