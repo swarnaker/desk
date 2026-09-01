@@ -89,6 +89,7 @@ export default function AccountPage() {
           <Chip on={filters.pad === "VIRTUALS"} onClick={() => set({ pad: "VIRTUALS" })}>Virtuals</Chip>
           <Chip on={filters.pad === "CLANKER"} onClick={() => set({ pad: "CLANKER" })}>Clanker</Chip>
           <Chip on={filters.pad === "PUMP"} onClick={() => set({ pad: "PUMP" })}>Pump</Chip>
+          <Chip on={filters.pad === "LONG"} onClick={() => set({ pad: "LONG" })}>Long</Chip>
           <span className="mx-1 text-hairline">|</span>
           <Chip on={filters.curve} onClick={() => set({ curve: !filters.curve })}>Curve</Chip>
           <Chip on={filters.birthOnly} onClick={() => set({ birthOnly: !filters.birthOnly })}>BIRTH</Chip>
@@ -96,7 +97,7 @@ export default function AccountPage() {
         <p className="mt-2 text-[11px] text-mute">These filters work with Radar. Click to apply, then visit Radar to see results.</p>
       </div>
 
-      <HealthFooter signedIn={true} page="account" />
+      <HealthFooter signedIn={true} />
     </div>
   );
 }

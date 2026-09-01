@@ -14,8 +14,8 @@ export type FactoryLaunch = {
   timestampMs: number | null;
   name?: string;
   symbol?: string;
-  chain: "robinhood" | "base";
-  pad: "PONS" | "O1";
+  chain: "robinhood" | "base" | "solana";
+  pad: "PONS" | "O1" | "LONG" | "VIRTUALS" | "CLANKER";
   mcapUsd?: number;
   liqUsd?: number;
   vol1hUsd?: number;

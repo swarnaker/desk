@@ -295,6 +295,14 @@ export async function listRadar(opts?: RadarListOpts): Promise<RadarPayload> {
   for (const l of o1Rh.launches) upsertOfficial(map, l, "o1:api", false);
   for (const l of o1Fac.launches) upsertOfficial(map, l, "o1:factory", true);
 
+  // CONDITIONAL: Harvest LONG only when explicitly requested
+  if (gates.pad === "LONG") {
+    const { harvestLongXyz } = await import("./longxyz");
+    const { launches, health } = await harvestLongXyz();
+    sources.push(health);
+    for (const l of launches) upsertOfficial(map, l, "longxyz", false);
+  }
+
   // Catalog stays in the ingest/snapshot. Do not Dex-hydrate the whole 300+ catalog
   // onto the default board (dust 1h vol would leak every graduate into BOOK).
   const DEX_ADDR_CAP = 60;
