@@ -27,9 +27,9 @@ export const DEFAULT_FILTERS: Filters = {
   stocks: false,
 };
 
-/** PUMP/PONS/O1/BASE/VIRTUALS/CLANKER exact. BOTH, ALL, or omitted = PONS or O1 only (not PUMP, not BASE, not VIRTUALS, not CLANKER). */
+/** PUMP/PONS/O1/BASE/LONG/VIRTUALS/CLANKER exact. BOTH, ALL, or omitted = PONS or O1 only (not PUMP, not BASE, not LONG, not VIRTUALS, not CLANKER). */
 export function padMatches(row: { pad: string }, pad?: Filters["pad"]): boolean {
-  if (pad === "PUMP" || pad === "PONS" || pad === "O1" || pad === "BASE" || pad === "VIRTUALS" || pad === "CLANKER") return row.pad === pad;
+  if (pad === "PUMP" || pad === "PONS" || pad === "O1" || pad === "BASE" || pad === "LONG" || pad === "VIRTUALS" || pad === "CLANKER") return row.pad === pad;
   return row.pad === "PONS" || row.pad === "O1";
 }
 

@@ -297,10 +297,11 @@ export async function listRadar(opts?: RadarListOpts): Promise<RadarPayload> {
     persistSnapshot(catalogPayload);
   }
 
-  // CONDITIONAL: Harvest VIRTUALS or CLANKER only when explicitly requested
-  if (gates.pad === "VIRTUALS" || gates.pad === "CLANKER") {
+  // CONDITIONAL: Harvest VIRTUALS, CLANKER, or LONG only when explicitly requested
+  if (gates.pad === "VIRTUALS" || gates.pad === "CLANKER" || gates.pad === "LONG") {
     const { harvestVirtuals } = await import("./virtuals");
     const { harvestClanker } = await import("./clanker");
+    const { harvestLongXyz } = await import("./longxyz");
     
     if (gates.pad === "VIRTUALS") {
       const { launches, health } = await harvestVirtuals();
@@ -312,6 +313,12 @@ export async function listRadar(opts?: RadarListOpts): Promise<RadarPayload> {
       const { launches, health } = await harvestClanker();
       sources.push(health);
       for (const l of launches) upsertOfficial(map, l, "clanker", false);
+    }
+
+    if (gates.pad === "LONG") {
+      const { launches, health } = await harvestLongXyz();
+      sources.push(health);
+      for (const l of launches) upsertOfficial(map, l, "longxyz", false);
     }
   }
 

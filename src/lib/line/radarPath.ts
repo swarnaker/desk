@@ -6,7 +6,7 @@ export function parseAgeGateParam(raw: string | null | undefined): AgeGate {
 }
 
 export function parsePadParam(raw: string | null | undefined): "BOTH" | "ALL" | Pad {
-  if (raw === "PONS" || raw === "O1" || raw === "PUMP" || raw === "BASE" || raw === "VIRTUALS" || raw === "CLANKER" || raw === "BOTH") return raw;
+  if (raw === "PONS" || raw === "O1" || raw === "PUMP" || raw === "BASE" || raw === "LONG" || raw === "VIRTUALS" || raw === "CLANKER" || raw === "BOTH") return raw;
   return "BOTH";
 }
 
@@ -43,7 +43,7 @@ export function radarApiPath(
   if (curve) p.set("curve", "1");
   if (ageGate === "any" || ageGate === "1h" || ageGate === "2h") p.set("age", ageGate);
   if (watchedIds.length) p.set("watched", watchedIds.join(","));
-  if (pad === "PONS" || pad === "O1" || pad === "PUMP" || pad === "BASE" || pad === "VIRTUALS" || pad === "CLANKER") p.set("pad", pad);
+  if (pad === "PONS" || pad === "O1" || pad === "PUMP" || pad === "BASE" || pad === "LONG" || pad === "VIRTUALS" || pad === "CLANKER") p.set("pad", pad);
   if (early) p.set("early", "1");
   if (wake) p.set("wake", "1");
   if (birth) p.set("birth", "1");
