@@ -103,6 +103,14 @@ export function classifyPad(c: Cand): Pad {
   if (c.factory?.pad === "O1" || looksO1(c)) return "O1";
   // Pad PONS only from catalog / factory V1/V2 — never every robinhood Dex hit.
   if (hasPonsOfficial(c)) return "PONS";
+  if (c.factory?.pad === "LONG") return "LONG";
+  if (c.factory?.pad === "VIRTUALS") return "VIRTUALS";
+  if (c.factory?.pad === "CLANKER") return "CLANKER";
+  for (const s of c.sources) {
+    if (s === "longxyz" || s.startsWith("longxyz:")) return "LONG";
+    if (s === "virtuals" || s.startsWith("virtuals:")) return "VIRTUALS";
+    if (s === "clanker" || s.startsWith("clanker:")) return "CLANKER";
+  }
   return "BASE";
 }
 

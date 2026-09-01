@@ -65,18 +65,18 @@ export async function harvestLongXyz(): Promise<{ launches: FactoryLaunch[]; hea
   const source = "longxyz";
   
   try {
-    // Search DexScreener robinhood for stock-quoted pairs
+    const KNOWN_LONG_NAMES = ["SAYLORMOON", "MOO", "SPACEHOOD", "AAPLCAT"];
     const launches: FactoryLaunch[] = [];
     const seen = new Set<string>();
-    
-    // Search for each stock ticker as quote token
-    const searchJobs = STOCK_QUOTES.map(async (ticker) => {
+
+    const searchQueries = [...STOCK_QUOTES, ...KNOWN_LONG_NAMES];
+    const searchJobs = searchQueries.map(async (q) => {
       try {
-        const { items } = await fetchDexSearch(ticker);
+        const { items } = await fetchDexSearch(q);
         for (const pair of items) {
           const chain = mapChainId(pair.chainId);
           if (chain !== "robinhood") continue;
-          
+
           const launch = pairToLaunch(pair);
           if (!launch) continue;
           const key = launch.token.toLowerCase();
@@ -88,7 +88,7 @@ export async function harvestLongXyz(): Promise<{ launches: FactoryLaunch[]; hea
         // Skip failed searches
       }
     });
-    
+
     await Promise.all(searchJobs);
     
     const ms = Date.now() - t0;
