@@ -28,11 +28,12 @@ export function telegramWatchText(opts: {
   chain: string;
   ca: string;
 }): string {
+  const vol1h = formatUsd(opts.vol1hUsd);
+  const mcap = formatUsd(opts.mcapUsd);
   return [
-    watchToastTitle(opts.symbol, opts.kind),
-    watchToastBody(opts.pad, opts.mcapUsd, opts.vol1hUsd),
-    opts.ca,
-    watchToastHref(opts.chain, opts.ca),
+    `$${opts.symbol} ${opts.kind}  ${opts.pad}  ${vol1h}  ${mcap}`,
+    `CA ${opts.ca}`,
+    `https://www.linespace.space/t/${opts.chain}/${opts.ca}`,
   ].join("\n");
 }
 

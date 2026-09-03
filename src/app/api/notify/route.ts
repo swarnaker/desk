@@ -1,8 +1,13 @@
 import { isChain, isEvmCa, isSolMint } from "@/lib/line/ca";
-import { notifyWatch } from "@/lib/server/telegram";
+import { notifyWatch, notifyTest } from "@/lib/server/telegram";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
+
+export async function GET() {
+  const result = await notifyTest();
+  return NextResponse.json(result);
+}
 
 export async function POST(req: Request) {
   let body: unknown;

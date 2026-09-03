@@ -174,3 +174,22 @@ export async function notifyWatch(input: NotifyInput): Promise<{ ok: boolean; de
     return { ok: false, detail: "send failed" };
   }
 }
+
+export async function notifyTest(): Promise<{ ok: boolean; detail: string }> {
+  if (!telegramWired()) return { ok: false, detail: "not wired" };
+  const t = token();
+  const chat = chatId();
+  const text = "LINE test\nCA will appear on live alerts";
+  try {
+    const res = await fetch("https://api.telegram.org/bot" + t + "/sendMessage", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ chat_id: chat, text, disable_web_page_preview: true }),
+      cache: "no-store",
+    });
+    if (!res.ok) return { ok: false, detail: "send failed" };
+    return { ok: true, detail: "sent" };
+  } catch {
+    return { ok: false, detail: "send failed" };
+  }
+}
