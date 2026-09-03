@@ -57,7 +57,11 @@ function formatMessage(row: TokenRow, status: "WAKE" | "PRINT"): string {
   const vol1h = row.vol1hUsd != null ? `$${Math.round(row.vol1hUsd).toLocaleString()}` : "—";
   const mcap = row.mcapUsd != null ? `$${Math.round(row.mcapUsd).toLocaleString()}` : "—";
   
-  return `$${row.symbol} ${status}  ${heat}  ${vol1h}  ${mcap}\nhttps://www.linespace.space/t/${row.chain}/${row.ca}`;
+  return [
+    `$${row.symbol} ${status}  ${heat}  ${vol1h}  ${mcap}`,
+    `CA ${row.ca}`,
+    `https://www.linespace.space/t/${row.chain}/${row.ca}`,
+  ].join("\n");
 }
 
 export async function GET(req: NextRequest) {
