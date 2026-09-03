@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSnapshot, listRadar } from "@/lib/server/radar";
 import { sendTelegramMessage } from "@/lib/server/telegram";
-import { computeWake, computePrint } from "@/lib/line/lane";
+import { computeWake } from "@/lib/line/lane";
 import type { TokenRow } from "@/lib/line/types";
 import fs from "fs";
 import path from "path";
@@ -53,7 +53,7 @@ function isCanonicalPin(row: TokenRow): boolean {
   return sym === "PONS" || sym === "O" || sym === "AI";
 }
 
-function formatMessage(row: TokenRow, status: "WAKE" | "PRINT" | "HOT"): string {
+function formatMessage(row: TokenRow, status: "WAKE" | "HOT"): string {
   const heat = String(row.heat);
   const vol1h = row.vol1hUsd != null ? `$${Math.round(row.vol1hUsd).toLocaleString()}` : "—";
   const mcap = row.mcapUsd != null ? `$${Math.round(row.mcapUsd).toLocaleString()}` : "—";
@@ -126,12 +126,12 @@ export async function GET(req: NextRequest) {
     if (isCanonicalPin(row)) return false;
     if (row.pad !== "PONS" && row.pad !== "O1") return false;
     if (seen[row.ca]) return false;
-    return computeWake(row) || computePrint(row) || row.heat > HOT_THRESHOLD;
+    return row.heat > 350 || (computeWake(row) && row.heat >= 250);
   });
 
   let sent = 0;
   for (const row of candidates) {
-    const status = computeWake(row) ? "WAKE" : computePrint(row) ? "PRINT" : "HOT";
+    const status = row.heat > 350 ? "HOT" : "WAKE";
     const message = formatMessage(row, status);
     const result = await sendTelegramMessage(chatIdValue, message);
     
