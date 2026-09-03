@@ -8,6 +8,7 @@ import { useWatch } from "@/hooks/useWatch";
 import { HealthFooter } from "@/components/HealthFooter";
 import { useRadarFilters } from "@/hooks/useRadarFilters";
 import { LINE_EARLY_CHIP } from "@/lib/line/uiLabels";
+import { useState } from "react";
 
 function Chip({ on, children, onClick }: { on: boolean; children: React.ReactNode; onClick: () => void }) {
   return (
@@ -22,6 +23,10 @@ export default function AccountPage() {
   const { filters, setFilters } = useRadarFilters();
   const watchedIds = watch.file.items.map((i) => i.chain + ":" + i.ca);
   
+  const [chatId, setChatId] = useState("");
+  const [saveStatus, setSaveStatus] = useState("");
+  const [testStatus, setTestStatus] = useState("");
+  
   const { data } = useQuery({
     queryKey: ["radar", "6h", false, watchedIds.join(","), "BOTH", false],
     queryFn: async () => {
@@ -32,11 +37,70 @@ export default function AccountPage() {
     refetchInterval: 20_000,
   });
 
+  const { data: settings } = useQuery({
+    queryKey: ["settings"],
+    queryFn: async () => {
+      const res = await fetch("/api/settings", { cache: "no-store" });
+      if (!res.ok) return { chatId: "" };
+      const data = await res.json();
+      if (data.chatId && !chatId) setChatId(data.chatId);
+      return data;
+    },
+  });
+
   async function onLogout() {
     try {
       await fetch("/api/logout", { method: "POST" });
     } catch { /* still leave */ }
     window.location.href = "/login";
+  }
+
+  async function onSaveTelegram() {
+    setSaveStatus("Saving...");
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chatId }),
+      });
+      if (res.ok) {
+        setSaveStatus("Saved");
+        setTimeout(() => setSaveStatus(""), 2000);
+      } else {
+        setSaveStatus("Failed");
+        setTimeout(() => setSaveStatus(""), 2000);
+      }
+    } catch {
+      setSaveStatus("Failed");
+      setTimeout(() => setSaveStatus(""), 2000);
+    }
+  }
+
+  async function onTestTelegram() {
+    if (!chatId) {
+      setTestStatus("Enter chat ID");
+      setTimeout(() => setTestStatus(""), 2000);
+      return;
+    }
+    setTestStatus("Sending...");
+    try {
+      const res = await fetch("/api/telegram/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chatId }),
+      });
+      if (res.ok) {
+        setTestStatus("Sent");
+        setTimeout(() => setTestStatus(""), 2000);
+      } else {
+        const err = await res.json();
+        setTestStatus(err.error || "Failed");
+        setTimeout(() => setTestStatus(""), 3000);
+      }
+    } catch {
+      setTestStatus("Failed");
+      setTimeout(() => setTestStatus(""), 2000);
+    }
   }
 
   const b = data?.banners;
@@ -81,6 +145,43 @@ export default function AccountPage() {
 
       <div className="font-mono text-xs tabular text-mute">
         Watch {watch.file.items.length}
+      </div>
+
+      <div className="space-y-3">
+        <h2 className="text-sm tracking-[0.14em] text-ink">Telegram Notifications</h2>
+        <div className="space-y-2">
+          <div>
+            <label className="block text-[11px] text-mute mb-1">Chat ID</label>
+            <input
+              type="text"
+              value={chatId}
+              onChange={(e) => setChatId(e.target.value)}
+              placeholder="123456 or -100..."
+              className="w-full max-w-md px-3 py-2 bg-surface border border-hairline text-ink text-sm rounded focus:outline-none focus:border-gold"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void onSaveTelegram()}
+              className="px-4 py-2 bg-surface border border-hairline text-ink text-xs tracking-[0.14em] rounded hover:border-gold transition-colors"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={() => void onTestTelegram()}
+              className="px-4 py-2 bg-surface border border-hairline text-ink text-xs tracking-[0.14em] rounded hover:border-gold transition-colors"
+            >
+              Test
+            </button>
+            {saveStatus && <span className="text-[11px] text-mute">{saveStatus}</span>}
+            {testStatus && <span className="text-[11px] text-mute">{testStatus}</span>}
+          </div>
+          <p className="text-[11px] text-mute">
+            WAKE/PRINT notifications every 5 min. If empty, falls back to TELEGRAM_CHAT_ID env.
+          </p>
+        </div>
       </div>
 
       <div>

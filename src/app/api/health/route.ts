@@ -2,6 +2,7 @@ import { getSnapshot } from "@/lib/server/radar";
 import { attachPayboxHealth } from "@/lib/server/paybox";
 import { harvestPonsGraduatedCatalog } from "@/lib/server/pons";
 import { fetchO1LaunchApi } from "@/lib/server/o1";
+import { telegramHealth } from "@/lib/server/telegram";
 import type { HealthSource } from "@/lib/line/types";
 import { NextResponse } from "next/server";
 
@@ -82,8 +83,10 @@ export async function GET() {
     hits: probe.sources.filter(s => s.ok).length,
     attempts: probe.sources.length
   });
+
+  const tgHealth = telegramHealth();
   
-  const sources = (health.sources || []).map((s) => ({
+  const sources = [...(health.sources || []), tgHealth].map((s) => ({
     name: s.name,
     ok: s.ok,
     hits: s.hits,

@@ -9,15 +9,65 @@ const SEEN_PATH = path.join(process.cwd(), "data", "notify-seen.json");
 function token(): string {
   return (process.env.TELEGRAM_BOT_TOKEN || "").trim();
 }
+
 function chatId(): string {
   return (process.env.TELEGRAM_CHAT_ID || "").trim();
+}
+
+export type TelegramSettings = {
+  chatId: string;
+};
+
+function getChatId(): string {
+  try {
+    const settingsPath = path.join("/tmp", "line-settings-admin.json");
+    const raw = fs.readFileSync(settingsPath, "utf8");
+    const settings = JSON.parse(raw);
+    if (settings.chatId) {
+      return String(settings.chatId);
+    }
+  } catch {
+    /* use env fallback */
+  }
+  return chatId();
 }
 
 export function telegramWired(): boolean {
   return !!(token() && chatId());
 }
 
-/** Radar health bit. Never includes token or chat id. */
+export async function sendTelegramMessage(
+  chatIdParam: string,
+  message: string
+): Promise<{ ok: boolean; detail?: string }> {
+  const t = token();
+  if (!t) {
+    return { ok: false, detail: "not wired" };
+  }
+
+  try {
+    const url = `https://api.telegram.org/bot${t}/sendMessage`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatIdParam,
+        text: message,
+        disable_web_page_preview: true,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.text().catch(() => "network error");
+      return { ok: false, detail: err.slice(0, 100) };
+    }
+
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, detail: String(err).slice(0, 100) };
+  }
+}
+
 export function telegramHealth(): HealthSource {
   const wired = telegramWired();
   return {
@@ -28,6 +78,10 @@ export function telegramHealth(): HealthSource {
     ms: 0,
     detail: wired ? undefined : "not wired",
   };
+}
+
+export function getTelegramHealth(): HealthSource {
+  return telegramHealth();
 }
 
 export function attachTelegramHealth(health?: {
@@ -79,11 +133,6 @@ export type NotifyInput = {
   kind: BirthWake;
 };
 
-/**
- * Optional Telegram for a watched BIRTH/WAKE flip.
- * Missing env → {ok:false, detail:"not wired"}. Never fakes a send.
- * 5-minute per-CA dedupe is file-backed so HMR/refresh cannot flood.
- */
 export async function notifyWatch(input: NotifyInput): Promise<{ ok: boolean; detail: string }> {
   if (!telegramWired()) return { ok: false, detail: "not wired" };
   if (input.kind !== "BIRTH" && input.kind !== "WAKE") return { ok: false, detail: "invalid" };
@@ -102,7 +151,7 @@ export async function notifyWatch(input: NotifyInput): Promise<{ ok: boolean; de
   saveSeen(seen);
 
   const t = token();
-  const chat = chatId();
+  const chat = getChatId();
   const text = telegramWatchText({
     symbol: input.symbol || "?",
     kind: input.kind,
