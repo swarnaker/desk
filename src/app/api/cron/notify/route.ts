@@ -52,7 +52,7 @@ function isCanonicalPin(row: TokenRow): boolean {
   return sym === "PONS" || sym === "O" || sym === "AI";
 }
 
-function formatMessage(row: TokenRow, status: "WAKE" | "PRINT"): string {
+function formatMessage(row: TokenRow, status: "WAKE" | "PRINT" | "HOT"): string {
   const heat = String(row.heat);
   const vol1h = row.vol1hUsd != null ? `$${Math.round(row.vol1hUsd).toLocaleString()}` : "—";
   const mcap = row.mcapUsd != null ? `$${Math.round(row.mcapUsd).toLocaleString()}` : "—";
@@ -103,12 +103,12 @@ export async function GET(req: NextRequest) {
     if (isCanonicalPin(row)) return false;
     if (row.pad !== "PONS" && row.pad !== "O1") return false;
     if (seen[row.ca]) return false;
-    return computeWake(row) || computePrint(row);
+    return computeWake(row) || computePrint(row) || row.heat > 350;
   });
 
   let sent = 0;
   for (const row of candidates) {
-    const status = computeWake(row) ? "WAKE" : "PRINT";
+    const status = computeWake(row) ? "WAKE" : computePrint(row) ? "PRINT" : "HOT";
     const message = formatMessage(row, status);
     const result = await sendTelegramMessage(chatIdValue, message);
     
