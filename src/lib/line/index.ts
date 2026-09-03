@@ -9,7 +9,7 @@ export {
   WAKE_UNIQUE_BUYERS_MIN, BOOSTED_HIDE_UNIQUE_BUYERS, SERIAL_LAUNCHES_7D, SERIAL_MCAP_USD, WEEK_SEC,
 } from "./types";
 export { inferStage, curveFillAllowed } from "./stage";
-export { inferLane, isOnCurve, isSurvived, isStretchException, sortLane, splitLanes, computeBirth, computeWake, isTapePrint } from "./lane";
+export { inferLane, isOnCurve, isSurvived, isStretchException, sortLane, splitLanes, computeBirth, computeWake, computePrint, isTapePrint } from "./lane";
 export { heatScore, isMoving } from "./heat";
 export { applyFilters, DEFAULT_FILTERS, padMatches, passesAgeGate, passesBondingGate, passesActivityGate, isBoostedHidden, isPonsMcapBook, isPonsMcapExtra, isEarlyPons, rowIsStretch, minAgeSec, tx1h } from "./filters";
 export { riskFromFlags, isHiddenRisky } from "./risk";

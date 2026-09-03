@@ -109,8 +109,8 @@ export function computeBirth(row: {
   return true;
 }
 
-/** WAKE = age >= 24h AND vol1hUsd >= max(3*(vol24hUsd/24), 25000) AND uniqueBuyers1h >= 15.
- *  Missing uniqueBuyers1h → skip WAKE (never invent 0). Dust cannot WAKE. */
+/** WAKE = age >= 24h AND vol1hUsd >= max(3*(vol24hUsd/24), 25000).
+ *  Compute even when uniqueBuyers1h is null (use vol1h vs 24h only). */
 export function computeWake(row: {
   pad?: Pad;
   ageSec?: number;
@@ -125,8 +125,31 @@ export function computeWake(row: {
   const hourly = vol24 != null && vol24 > 0 ? vol24 / 24 : 0;
   const bar = Math.max(3 * hourly, WAKE_VOL_FLOOR);
   if (row.vol1hUsd < bar) return false;
-  if (row.uniqueBuyers1h == null || row.uniqueBuyers1h < WAKE_UNIQUE_BUYERS_MIN) return false;
   return true;
+}
+
+/** PRINT = vol1hUsd >= max(3*(vol24hUsd/24), 25000) OR (vol1hUsd >= 10000 AND mcapUsd >= 200000).
+ *  Works even when uniqueBuyers1h is missing. */
+export function computePrint(row: {
+  vol1hUsd?: number;
+  vol24hUsd?: number;
+  mcapUsd?: number;
+}): boolean {
+  const v1h = row.vol1hUsd ?? 0;
+  if (v1h === 0) return false;
+  const vol24 = row.vol24hUsd;
+  const hourly = vol24 != null && vol24 > 0 ? vol24 / 24 : 0;
+  const bar = Math.max(3 * hourly, WAKE_VOL_FLOOR);
+  if (v1h >= bar) return true;
+  if (v1h >= 10_000 && (row.mcapUsd ?? 0) >= 200_000) return true;
+  return false;
+}
+
+/** Canonical pins that must not use WAKE/PRINT boost. Match by CA or ticker/symbol. */
+function isPinExcludedFromBoost(row: { symbol: string; canonical?: boolean }): boolean {
+  if (row.canonical === true) return true;
+  const sym = row.symbol.toUpperCase().trim().replace(/[\$\s]/g, "");
+  return sym === "PONS" || sym === "O" || sym === "AI";
 }
 
 /** Tape print: vol1hUsd >= 3k OR uniqueBuyers1h >= 10. Missing buyers is not a print. */
@@ -136,21 +159,36 @@ export function isTapePrint(row: TokenRow): boolean {
   return false;
 }
 
-/** Movers first, then heat desc, then vol1hUsd desc. */
+/** WAKE/PRINT first (excluding pins), then movers, then heat, then vol1hUsd. */
 export function sortLane(rows: TokenRow[]): TokenRow[] {
   return [...rows].sort((a, b) => {
+    // 1) WAKE or PRINT first (even if uniqueBuyers1h is missing). Pins excluded.
+    const aWakeOrPrint = !isPinExcludedFromBoost(a) && (a.wake || computePrint(a));
+    const bWakeOrPrint = !isPinExcludedFromBoost(b) && (b.wake || computePrint(b));
+    if (aWakeOrPrint !== bWakeOrPrint) return bWakeOrPrint ? 1 : -1;
+
+    // 2) Movers: green movers first
     const aGreenMover = a.moving && a.risk.level === "GREEN" ? 1 : 0;
     const bGreenMover = b.moving && b.risk.level === "GREEN" ? 1 : 0;
     if (aGreenMover !== bGreenMover) return bGreenMover - aGreenMover;
+
+    // RED cannot outrank others
     const aRed = a.risk.level === "RED" ? 1 : 0;
     const bRed = b.risk.level === "RED" ? 1 : 0;
     if (aRed !== bRed) return aRed - bRed;
+
+    // Any movers
     const am = a.moving ? 1 : 0;
     const bm = b.moving ? 1 : 0;
     if (am !== bm) return bm - am;
+
+    // 3) Heat
     if (a.heat !== b.heat) return b.heat - a.heat;
+
+    // 4) Vol1h
     const vol = (b.vol1hUsd ?? 0) - (a.vol1hUsd ?? 0);
     if (vol !== 0) return vol;
+
     return (b.firstSeenAt || "").localeCompare(a.firstSeenAt || "");
   });
 }
