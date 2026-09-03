@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSnapshot } from "@/lib/server/radar";
+import { getSnapshot, listRadar } from "@/lib/server/radar";
 import { sendTelegramMessage } from "@/lib/server/telegram";
 import { computeWake, computePrint } from "@/lib/line/lane";
 import type { TokenRow } from "@/lib/line/types";
@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 
 const SEEN_FILE = path.join("/tmp", "line-telegram-seen.json");
 const SEEN_TTL_MS = 6 * 60 * 60 * 1000;
+const HOT_THRESHOLD = 350;
 
 type SeenMap = Record<string, number>;
 
@@ -59,7 +60,7 @@ function formatMessage(row: TokenRow, status: "WAKE" | "PRINT" | "HOT"): string 
   
   return [
     `$${row.symbol} ${status}  ${heat}  ${vol1h}  ${mcap}`,
-    `CA ${row.ca}`,
+    row.ca,
     `https://www.linespace.space/t/${row.chain}/${row.ca}`,
   ].join("\n");
 }
@@ -67,18 +68,36 @@ function formatMessage(row: TokenRow, status: "WAKE" | "PRINT" | "HOT"): string 
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (secret) {
-    const header = req.headers.get("x-cron-secret");
-    if (header !== secret) {
+    const authHeader = req.headers.get("authorization");
+    const cronSecretHeader = req.headers.get("x-cron-secret");
+    
+    let authorized = false;
+    if (authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.substring(7);
+      authorized = token === secret;
+    } else if (cronSecretHeader === secret) {
+      authorized = true;
+    }
+    
+    if (!authorized) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
   }
 
-  const snap = getSnapshot();
+  let snap = getSnapshot();
   if (!snap || snap.tokens.length === 0) {
-    return NextResponse.json({ ok: true, sent: 0, detail: "no snapshot" });
+    try {
+      snap = await listRadar();
+    } catch (err) {
+      return NextResponse.json({ ok: true, sent: 0, detail: "no snapshot and listRadar failed" });
+    }
+  }
+  
+  if (!snap || snap.tokens.length === 0) {
+    return NextResponse.json({ ok: true, sent: 0, detail: "no tokens" });
   }
 
-  let chatIdValue = process.env.TELEGRAM_CHAT_ID || "";
+  let chatIdValue = "";
   
   try {
     const settingsPath = path.join("/tmp", "line-settings-admin.json");
@@ -89,6 +108,10 @@ export async function GET(req: NextRequest) {
     }
   } catch {
     /* use env fallback */
+  }
+  
+  if (!chatIdValue) {
+    chatIdValue = process.env.TELEGRAM_CHAT_ID || "";
   }
 
   if (!chatIdValue) {
@@ -103,7 +126,7 @@ export async function GET(req: NextRequest) {
     if (isCanonicalPin(row)) return false;
     if (row.pad !== "PONS" && row.pad !== "O1") return false;
     if (seen[row.ca]) return false;
-    return computeWake(row) || computePrint(row) || row.heat > 350;
+    return computeWake(row) || computePrint(row) || row.heat > HOT_THRESHOLD;
   });
 
   let sent = 0;

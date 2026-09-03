@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { COOKIE_NAME, verifySession } from "@/lib/server/auth";
 
-const PUBLIC = new Set(["/login", "/api/login", "/api/logout", "/api/health"]);
+const PUBLIC = new Set(["/login", "/api/login", "/api/logout", "/api/health", "/api/cron/notify"]);
 
 function isPublic(pathname: string): boolean {
   return PUBLIC.has(pathname);
