@@ -252,16 +252,19 @@ export async function listRadar(opts?: RadarListOpts): Promise<RadarPayload> {
   const now = Date.now();
   const startMs = now;
 
-  // FAST PATH: Await ONLY catalog + o1 API. Factory adapters OFF.
-  const [ponsCat, o1Base, o1Rh] = await Promise.all([
+  // FAST PATH: Await ONLY catalog + o1 API + V2 grad listener. Factory adapters OFF.
+  const { harvestPonsV2Graduations } = await import("./pons-v2-grad");
+  const [ponsCat, ponsV2Grad, o1Base, o1Rh] = await Promise.all([
     harvestPonsGraduatedCatalog(),
+    harvestPonsV2Graduations(),
     fetchO1LaunchApi(8453),
     fetchO1LaunchApi(4663),
   ]);
-  sources.push(ponsCat.health, o1Base.health, o1Rh.health);
+  sources.push(ponsCat.health, ponsV2Grad.health, o1Base.health, o1Rh.health);
 
   const map = new Map<string, Cand>();
   for (const l of ponsCat.launches) upsertOfficial(map, l, "pons:catalog", false);
+  for (const l of ponsV2Grad.launches) upsertOfficial(map, l, "pons:v2-grad", false);
   for (const l of o1Base.launches) upsertOfficial(map, l, "o1:api", false);
   for (const l of o1Rh.launches) upsertOfficial(map, l, "o1:api", false);
 
