@@ -11,11 +11,10 @@ function Chip({ on, children, onClick }: { on: boolean; children: React.ReactNod
   );
 }
 
-const PADS: { id: "PONS" | "O1" | "BOTH" | "LONG"; label: string }[] = [
+const PADS: { id: "PONS" | "O1" | "BOTH"; label: string }[] = [
   { id: "PONS", label: "Pons" },
   { id: "O1", label: "O1" },
   { id: "BOTH", label: "Both" },
-  { id: "LONG", label: "Long" },
 ];
 
 const AGES: { id: AgeGate; label: string }[] = [

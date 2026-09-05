@@ -56,22 +56,13 @@ function RadarCard({ row, watched, onWatch }: { row: TokenRow; watched: boolean;
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] tabular text-mute">
         <span>M {formatUsd(row.mcapUsd)}</span>
         <span>V {formatUsd(row.vol1hUsd)}</span>
+        <span>B% {formatPct(row.buyPct)}</span>
       </div>
     </a>
   );
 }
 
 export function RadarRowView({ row, watched, onWatch }: { row: TokenRow; watched: boolean; onWatch: () => void }) {
-  const phys = physicsBits({
-    pad: row.pad,
-    stage: row.stage,
-    quote: row.quote,
-    curveFillPct: row.curveFillPct,
-    taxEndsAt: row.taxEndsAt,
-    ageSec: row.ageSec,
-    liqUsd: row.liqUsd,
-    padSub: row.padSub,
-  });
   const buyCls = row.buyPct == null ? "text-mute" : row.buyPct >= 55 ? "text-buy" : row.buyPct < 45 ? "text-sell" : "text-mute";
   const href = deskPath(row);
   return (
@@ -89,15 +80,7 @@ export function RadarRowView({ row, watched, onWatch }: { row: TokenRow; watched
       </td>
       <td className="whitespace-nowrap px-2 font-mono text-mute"><CopyCa ca={row.ca} /></td>
       <td className="whitespace-nowrap px-2 text-mute">{row.padSub || row.pad}</td>
-      <td className="whitespace-nowrap px-2 font-mono tabular text-gold">
-        {phys.primary}
-        {phys.quote && phys.quote !== "UNKNOWN" && (phys.kind === "locked" || phys.kind === "curve") ? (
-          <span className="ml-1 text-[10px] text-mute">{phys.quote}</span>
-        ) : null}
-        {phys.secondary ? <span className="ml-1 text-[10px] text-mute">{phys.secondary}</span> : null}
-      </td>
       <td className="whitespace-nowrap px-2 font-mono tabular">{row.heat}</td>
-      <td className={"whitespace-nowrap px-2 " + (riskLabel(row) ? riskColor(riskLabel(row)!) : "")} title={row.risk.flags.join(", ") || undefined}>{riskLabel(row) || EM}</td>
       <td className="whitespace-nowrap px-2 font-mono tabular">{formatUsd(row.mcapUsd)}</td>
       <td className="whitespace-nowrap px-2 font-mono tabular">{formatUsd(row.liqUsd)}</td>
       <td className="whitespace-nowrap px-2 font-mono tabular">{formatUsd(row.vol1hUsd)}</td>
@@ -144,18 +127,16 @@ export function RadarTable({ rows, watched, onWatch, sortColumn, sortDirection, 
       {/* Desktop table */}
       <section className="hidden border border-hairline bg-surface sm:block">
         <div className="max-w-full overflow-x-auto">
-          <table className="radar-table min-w-[1240px] border-collapse text-left text-[11px]">
+          <table className="radar-table min-w-[1080px] border-collapse text-left text-[11px]">
             <thead>
               <tr className="border-b border-hairline text-[10px] uppercase tracking-wide text-mute">
                 <th className="whitespace-nowrap px-2 py-1.5 font-normal">Lane</th>
                 <th className="whitespace-nowrap px-2 py-1.5 font-normal">Token</th>
                 <th className="whitespace-nowrap px-2 py-1.5 font-normal">CA</th>
                 <th className="whitespace-nowrap px-2 py-1.5 font-normal">Pad</th>
-                <th className="whitespace-nowrap px-2 py-1.5 font-normal">Physics</th>
                 <th className="whitespace-nowrap px-2 py-1.5 font-normal cursor-pointer hover:text-gold" onClick={() => onSort("heat")}>
                   Heat{sortIndicator("heat")}
                 </th>
-                <th className="whitespace-nowrap px-2 py-1.5 font-normal">Risk</th>
                 <th className="whitespace-nowrap px-2 py-1.5 font-normal cursor-pointer hover:text-gold" onClick={() => onSort("mcap")}>
                   Mcap{sortIndicator("mcap")}
                 </th>
@@ -176,7 +157,7 @@ export function RadarTable({ rows, watched, onWatch, sortColumn, sortDirection, 
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={14} className="px-3 py-8 text-center text-[11px] text-mute">empty</td>
+                  <td colSpan={12} className="px-3 py-8 text-center text-[11px] text-mute">empty</td>
                 </tr>
               ) : (
                 rows.map((r) => (

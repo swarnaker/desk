@@ -184,19 +184,6 @@ export default function AccountPage() {
         </div>
       </div>
 
-      <div>
-        <h2 className="mb-2 text-sm tracking-[0.14em] text-ink">More filters</h2>
-        <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-          <Chip on={filters.pad === "VIRTUALS"} onClick={() => set({ pad: "VIRTUALS" })}>Virtuals</Chip>
-          <Chip on={filters.pad === "CLANKER"} onClick={() => set({ pad: "CLANKER" })}>Clanker</Chip>
-          <Chip on={filters.pad === "PUMP"} onClick={() => set({ pad: "PUMP" })}>Pump</Chip>
-          <span className="mx-1 text-hairline">|</span>
-          <Chip on={filters.curve} onClick={() => set({ curve: !filters.curve })}>Curve</Chip>
-          <Chip on={filters.birthOnly} onClick={() => set({ birthOnly: !filters.birthOnly })}>BIRTH</Chip>
-        </div>
-        <p className="mt-2 text-[11px] text-mute">These filters work with Radar. Click to apply, then visit Radar to see results.</p>
-      </div>
-
       <HealthFooter signedIn={true} />
     </div>
   );
