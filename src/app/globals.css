@@ -35,24 +35,16 @@ body {
   display: table-cell;
   vertical-align: middle;
 }
-.radar-table td:nth-child(2) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.radar-table th:nth-child(1), .radar-table td:nth-child(1) { width: 72px; }
-.radar-table th:nth-child(2), .radar-table td:nth-child(2) { width: 168px; }
-.radar-table th:nth-child(3), .radar-table td:nth-child(3) { width: 108px; }
-.radar-table th:nth-child(4), .radar-table td:nth-child(4) { width: 72px; }
-.radar-table th:nth-child(5), .radar-table td:nth-child(5) { width: 128px; }
-.radar-table th:nth-child(6), .radar-table td:nth-child(6) { width: 56px; }
-.radar-table th:nth-child(7), .radar-table td:nth-child(7) { width: 64px; }
-.radar-table th:nth-child(8), .radar-table td:nth-child(8) { width: 72px; }
-.radar-table th:nth-child(9), .radar-table td:nth-child(9) { width: 72px; }
-.radar-table th:nth-child(10), .radar-table td:nth-child(10) { width: 80px; }
-.radar-table th:nth-child(11), .radar-table td:nth-child(11) { width: 56px; }
-.radar-table th:nth-child(12), .radar-table td:nth-child(12) { width: 56px; }
-.radar-table th:nth-child(13), .radar-table td:nth-child(13) { width: 88px; }
-.radar-table th:nth-child(14), .radar-table td:nth-child(14) { width: 110px; }
+.radar-table th:nth-child(1), .radar-table td:nth-child(1) { width: 220px; }
+.radar-table th:nth-child(2), .radar-table td:nth-child(2) { width: 52px; }
+.radar-table th:nth-child(3), .radar-table td:nth-child(3) { width: 52px; }
+.radar-table th:nth-child(4), .radar-table td:nth-child(4) { width: 88px; }
+.radar-table th:nth-child(5), .radar-table td:nth-child(5) { width: 80px; }
+.radar-table th:nth-child(6), .radar-table td:nth-child(6) { width: 88px; }
+.radar-table th:nth-child(7), .radar-table td:nth-child(7) { width: 56px; }
+.radar-table th:nth-child(8), .radar-table td:nth-child(8) { width: 90px; }
+.radar-table th:nth-child(9), .radar-table td:nth-child(9) { width: 56px; }
+.radar-table th:nth-child(10), .radar-table td:nth-child(10) { width: 140px; }
 
 /* Mobile responsive */
 @media (max-width: 640px) {

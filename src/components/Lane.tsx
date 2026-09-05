@@ -38,20 +38,20 @@ function RadarCard({ row, watched, onWatch }: { row: TokenRow; watched: boolean;
             >
               {watched ? "★" : "☆"}
             </button>
-            <h3 className="truncate font-medium text-ink text-base">{row.symbol}</h3>
+            <h3 className="font-medium text-ink text-base">{row.symbol}</h3>
             {row.birth ? <span className="shrink-0 border border-gold px-1 text-[9px] tracking-wide text-gold">BIRTH</span> : null}
             {row.wake ? <span className="shrink-0 border border-gold px-1 text-[9px] tracking-wide text-gold">WAKE</span> : null}
           </div>
-        </div>
-        <div className="shrink-0 text-right font-mono text-[11px] tabular">
-          <div className="text-base font-medium">{row.heat}</div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] tabular text-mute">
+            <span>{row.heat}</span>
+            <span>{formatAge(row.ageSec)}</span>
+          </div>
         </div>
       </div>
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] tabular text-mute">
         <span>M {formatUsd(row.mcapUsd)}</span>
         <span>V {formatUsd(row.vol1hUsd)}</span>
-        <span>A {formatAge(row.ageSec)}</span>
-        <span>{row.padSub || row.pad}</span>
+        <span>B% {formatPct(row.buyPct)}</span>
       </div>
       <div className="mt-1">
         <CopyCa ca={row.ca} />
@@ -68,17 +68,17 @@ export function RadarRowView({ row, watched, onWatch }: { row: TokenRow; watched
       <td className="px-2">
         <div className="flex min-w-0 items-center gap-1.5">
           <button type="button" aria-label={watched ? "WATCHED" : "WATCH"} title={watched ? "WATCHED" : "WATCH"} onClick={(e) => { e.stopPropagation(); onWatch(); }} className={"shrink-0 font-mono " + (watched ? "text-gold" : "text-mute")}>{watched ? "★" : "☆"}</button>
-          <a href={href} className="min-w-0 truncate font-medium text-ink" aria-label={"Open " + row.symbol + " desk"}>{row.symbol}</a>
+          <a href={href} className="min-w-0 font-medium text-ink" aria-label={"Open " + row.symbol + " desk"}>{row.symbol}</a>
           {row.birth ? <span className="shrink-0 border border-gold px-1 text-[9px] tracking-wide text-gold">BIRTH</span> : null}
           {row.wake ? <span className="shrink-0 border border-gold px-1 text-[9px] tracking-wide text-gold">WAKE</span> : null}
         </div>
       </td>
       <td className="whitespace-nowrap px-2 font-mono tabular">{row.heat}</td>
+      <td className="whitespace-nowrap px-2 font-mono tabular text-mute">{formatAge(row.ageSec)}</td>
       <td className="whitespace-nowrap px-2 font-mono tabular">{formatUsd(row.mcapUsd)}</td>
       <td className="whitespace-nowrap px-2 font-mono tabular">{formatUsd(row.liqUsd)}</td>
       <td className="whitespace-nowrap px-2 font-mono tabular">{formatUsd(row.vol1hUsd)}</td>
       <td className={"whitespace-nowrap px-2 font-mono tabular " + buyCls}>{formatPct(row.buyPct)}</td>
-      <td className="whitespace-nowrap px-2 font-mono tabular text-mute">{formatAge(row.ageSec)}</td>
       <td className="whitespace-nowrap px-2">
         <span className="flex gap-1.5 text-[10px] tracking-wide">
           <a className="text-mute hover:text-gold" href={row.links.gmgn} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>GMGN</a>
@@ -128,6 +128,7 @@ export function RadarTable({ rows, watched, onWatch, sortColumn, sortDirection, 
                 <th className="whitespace-nowrap px-2 py-1.5 font-normal cursor-pointer hover:text-gold" onClick={() => onSort("heat")}>
                   Heat{sortIndicator("heat")}
                 </th>
+                <th className="whitespace-nowrap px-2 py-1.5 font-normal">Age</th>
                 <th className="whitespace-nowrap px-2 py-1.5 font-normal cursor-pointer hover:text-gold" onClick={() => onSort("mcap")}>
                   Mcap{sortIndicator("mcap")}
                 </th>
@@ -140,7 +141,6 @@ export function RadarTable({ rows, watched, onWatch, sortColumn, sortDirection, 
                 <th className="whitespace-nowrap px-2 py-1.5 font-normal cursor-pointer hover:text-gold" onClick={() => onSort("buyPct")}>
                   Buy%{sortIndicator("buyPct")}
                 </th>
-                <th className="whitespace-nowrap px-2 py-1.5 font-normal">Age</th>
                 <th className="whitespace-nowrap px-2 py-1.5 font-normal">Links</th>
                 <th className="whitespace-nowrap px-2 py-1.5 font-normal">Pad</th>
                 <th className="whitespace-nowrap px-2 py-1.5 font-normal">CA</th>
