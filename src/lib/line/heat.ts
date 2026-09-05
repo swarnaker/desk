@@ -7,7 +7,8 @@ function clamp(n: number, lo: number, hi: number): number {
 /** Heat 0-400. Freshness decays after 6h. curveFill only Pons/Pump. */
 export function heatScore(input: HeatInput): number {
   const age = Math.max(0, input.ageSec ?? 6 * 3600);
-  const freshness = clamp(1 - age / (6 * 3600), 0, 1);
+  const isBook = age >= 6 * 3600;
+  const freshness = isBook ? 0 : clamp(1 - age / (6 * 3600), 0, 1);
   const buy = input.buyPct ?? 50;
   const buyBoost = buy > 55 ? clamp((buy - 50) / 50, 0, 1) : buy / 200;
   const vol = Math.max(0, input.vol1hUsd ?? 0);
@@ -15,7 +16,11 @@ export function heatScore(input: HeatInput): number {
   const liq = Math.max(0, input.liqUsd ?? 0);
   const volN = clamp(Math.log10(1 + vol) / 5, 0, 1);
   let accel = 0;
-  if (mcap > 0 && vol > 0) accel = clamp(vol / mcap, 0, 1);
+  if (mcap > 0 && vol > 0) {
+    const ratio = vol / mcap;
+    accel = clamp(Math.log10(1 + ratio * 10) / 2, 0, 1);
+  }
+  const accelWeight = isBook ? 0.38 : 0.1;
   const moving = input.moving ? 0.18 : 0;
   let curve = 0;
   if ((input.pad === "PONS" || input.pad === "PUMP") && input.curveFillPct != null) {
@@ -25,7 +30,7 @@ export function heatScore(input: HeatInput): number {
 
   let raw =
     400 *
-    (0.28 * freshness + 0.22 * buyBoost + 0.18 * volN + 0.1 * accel + moving + curve + tax);
+    (0.28 * freshness + 0.22 * buyBoost + 0.18 * volN + accelWeight * accel + moving + curve + tax);
 
   if (liq > 0 && liq < 1500) raw -= 40;
   const copies = input.sameNameCopies ?? 0;
