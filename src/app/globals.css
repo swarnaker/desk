@@ -24,27 +24,56 @@ body {
 
 .row-h { height: 54px; }
 
-/* Token cell used display:block + truncate inside table.w-full, so that column
-   ate 100% width and CA/pad/mcap/vol/… collapsed to 0. Fixed layout keeps every col. */
 .radar-table {
-  table-layout: fixed;
-  width: max(100%, 1240px);
+  table-layout: auto;
+  width: 100%;
 }
 .radar-table th,
 .radar-table td {
-  display: table-cell;
+  padding: 0.375rem 0.5rem;
   vertical-align: middle;
 }
-.radar-table th:nth-child(1), .radar-table td:nth-child(1) { width: 220px; }
-.radar-table th:nth-child(2), .radar-table td:nth-child(2) { width: 52px; }
-.radar-table th:nth-child(3), .radar-table td:nth-child(3) { width: 52px; }
-.radar-table th:nth-child(4), .radar-table td:nth-child(4) { width: 88px; }
-.radar-table th:nth-child(5), .radar-table td:nth-child(5) { width: 80px; }
-.radar-table th:nth-child(6), .radar-table td:nth-child(6) { width: 88px; }
-.radar-table th:nth-child(7), .radar-table td:nth-child(7) { width: 56px; }
-.radar-table th:nth-child(8), .radar-table td:nth-child(8) { width: 90px; }
-.radar-table th:nth-child(9), .radar-table td:nth-child(9) { width: 56px; }
-.radar-table th:nth-child(10), .radar-table td:nth-child(10) { width: 140px; }
+.radar-table th:nth-child(1),
+.radar-table td:nth-child(1) {
+  max-width: 240px;
+  word-break: break-word;
+  white-space: normal;
+}
+.radar-table th:nth-child(2),
+.radar-table td:nth-child(2),
+.radar-table th:nth-child(3),
+.radar-table td:nth-child(3) {
+  width: 56px;
+  font-family: ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.radar-table th:nth-child(4),
+.radar-table td:nth-child(4),
+.radar-table th:nth-child(5),
+.radar-table td:nth-child(5),
+.radar-table th:nth-child(6),
+.radar-table td:nth-child(6) {
+  font-family: ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.radar-table th:nth-child(7),
+.radar-table td:nth-child(7) {
+  width: 56px;
+  font-family: ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.radar-table th:nth-child(8),
+.radar-table td:nth-child(8) {
+  white-space: nowrap;
+}
+.radar-table th:nth-child(9),
+.radar-table td:nth-child(9) {
+  width: 56px;
+}
+.radar-table th:nth-child(10),
+.radar-table td:nth-child(10) {
+  font-family: ui-monospace, monospace;
+}
 
 /* Mobile responsive */
 @media (max-width: 640px) {
