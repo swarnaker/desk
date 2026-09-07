@@ -44,21 +44,19 @@ function RadarCard({ row, watched, onWatch }: { row: TokenRow; watched: boolean;
             {row.wake ? <span className="shrink-0 border border-gold px-1 text-[9px] tracking-wide text-gold">WAKE</span> : null}
           </div>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[11px] text-mute tabular">
-            <span>{row.heat}</span>
-            <span>·</span>
             <span>{formatAge(row.ageSec)}</span>
             <span>·</span>
             <span>{formatUsd(row.mcapUsd)}</span>
             <span>·</span>
             <span>{formatUsd(row.vol1hUsd)}</span>
           </div>
-          <div className="mt-1.5">
-            <CopyCa ca={row.ca} />
-          </div>
         </div>
         <div className="shrink-0 text-right font-mono text-[11px] tabular">
           <div className="text-base font-medium">{row.heat}</div>
           {riskLabel(row) ? <div className={"text-[10px] " + riskColor(riskLabel(row)!)}>{riskLabel(row)}</div> : null}
+          <div className="mt-1.5">
+            <CopyCa ca={row.ca} />
+          </div>
         </div>
       </div>
     </a>
