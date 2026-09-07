@@ -47,6 +47,7 @@ export type TokenRow = {
   padSub?: string;
   quote: Quote;
   quoteCa?: string;
+  quoteSymbol?: string;
   lane: Lane;
   stage: Stage;
   moving: boolean;

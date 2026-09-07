@@ -30,20 +30,20 @@ export function mapDexChain(id?: string): Chain | null {
   return null;
 }
 
-export function classifyQuote(pair?: DexPair): { quote: Quote; quoteCa?: string } {
+export function classifyQuote(pair?: DexPair): { quote: Quote; quoteCa?: string; quoteSymbol?: string } {
   const q = pair?.quoteToken;
   const addr = (q?.address || "").toLowerCase();
-  if (addr && QUOTE_ADDR[addr]) return { quote: QUOTE_ADDR[addr] as Quote, quoteCa: q?.address };
   const sym = (q?.symbol || "").toUpperCase();
-  if (sym === "WETH" || sym === "WETH.E") return { quote: "WETH", quoteCa: q?.address };
-  if (sym === "ETH") return { quote: "ETH", quoteCa: q?.address };
-  if (sym === "USDC") return { quote: "USDC", quoteCa: q?.address };
-  if (sym === "USDG") return { quote: "USDG", quoteCa: q?.address };
-  if (sym === "SOL" || sym === "WSOL") return { quote: "SOL", quoteCa: q?.address };
+  if (addr && QUOTE_ADDR[addr]) return { quote: QUOTE_ADDR[addr] as Quote, quoteCa: q?.address, quoteSymbol: sym || undefined };
+  if (sym === "WETH" || sym === "WETH.E") return { quote: "WETH", quoteCa: q?.address, quoteSymbol: sym };
+  if (sym === "ETH") return { quote: "ETH", quoteCa: q?.address, quoteSymbol: sym };
+  if (sym === "USDC") return { quote: "USDC", quoteCa: q?.address, quoteSymbol: sym };
+  if (sym === "USDG") return { quote: "USDG", quoteCa: q?.address, quoteSymbol: sym };
+  if (sym === "SOL" || sym === "WSOL") return { quote: "SOL", quoteCa: q?.address, quoteSymbol: sym };
   if (sym && !["UNKNOWN", "USD"].includes(sym) && sym.length <= 5 && /^[A-Z.]+$/.test(sym)) {
-    if (!["WETH", "ETH", "USDC", "USDG", "SOL"].includes(sym)) return { quote: "STOCK", quoteCa: q?.address };
+    if (!["WETH", "ETH", "USDC", "USDG", "SOL"].includes(sym)) return { quote: "STOCK", quoteCa: q?.address, quoteSymbol: sym };
   }
-  return { quote: "UNKNOWN", quoteCa: q?.address };
+  return { quote: "UNKNOWN", quoteCa: q?.address, quoteSymbol: undefined };
 }
 
 function looksO1(c: Cand): boolean {
@@ -148,7 +148,7 @@ export function candToRow(c: Cand, now = Date.now()): TokenRow | null {
   if (!c.pair && !c.factory) return null;
   const pair = c.pair;
   const pad = classifyPad(c);
-  const { quote, quoteCa } = classifyQuote(pair);
+  const { quote, quoteCa, quoteSymbol } = classifyQuote(pair);
   const hasDex = !!pair && !!pair.pairAddress && !/^0x0+$/i.test(pair.pairAddress);
   const fromO1Api = c.sources.has("o1:api");
   const factoryOnly = !hasDex && !!c.factory && !fromO1Api && !c.factory.graduated;
@@ -232,6 +232,7 @@ export function candToRow(c: Cand, now = Date.now()): TokenRow | null {
     padSub: tick === "CASHCAT" ? "RH" : undefined,
     quote,
     quoteCa,
+    quoteSymbol,
     lane,
     stage: safeStage,
     moving,

@@ -25,7 +25,8 @@ function deskPath(row: TokenRow) {
 
 function RadarCard({ row, watched, onWatch }: { row: TokenRow; watched: boolean; onWatch: () => void }) {
   const href = deskPath(row);
-  const tokenLabel = row.quote !== "UNKNOWN" ? `${row.symbol}/${row.quote}` : row.symbol;
+  const displayQuote = row.quoteSymbol || row.quote;
+  const tokenLabel = displayQuote !== "UNKNOWN" ? `${row.symbol}/${displayQuote}` : row.symbol;
   const isHot = row.heat >= 320 && (row.mcapUsd ?? 0) >= 50000;
   return (
     <a href={href} className="block border-b border-hairline bg-surface p-3 hover:bg-card">
@@ -64,7 +65,8 @@ function RadarCard({ row, watched, onWatch }: { row: TokenRow; watched: boolean;
 export function RadarRowView({ row, watched, onWatch }: { row: TokenRow; watched: boolean; onWatch: () => void }) {
   const buyCls = row.buyPct == null ? "text-mute" : row.buyPct >= 55 ? "text-buy" : row.buyPct < 45 ? "text-sell" : "text-mute";
   const href = deskPath(row);
-  const tokenLabel = row.quote !== "UNKNOWN" ? `${row.symbol}/${row.quote}` : row.symbol;
+  const displayQuote = row.quoteSymbol || row.quote;
+  const tokenLabel = displayQuote !== "UNKNOWN" ? `${row.symbol}/${displayQuote}` : row.symbol;
   const isHot = row.heat >= 320 && (row.mcapUsd ?? 0) >= 50000;
   return (
     <tr className="border-b border-hairline hover:bg-card" style={{ height: "44px" }}>
