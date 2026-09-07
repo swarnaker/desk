@@ -137,7 +137,6 @@ export function FirstHourFeed({
               <th className="px-2 py-2 text-left text-xs text-mute tracking-wider">Age</th>
               <th className="px-2 py-2 text-left text-xs text-mute tracking-wider">Mcap</th>
               <th className="px-2 py-2 text-left text-xs text-mute tracking-wider">Liq/Curve%</th>
-              <th className="px-2 py-2 text-left text-xs text-mute tracking-wider">Quote</th>
               <th className="px-2 py-2 text-left text-xs text-mute tracking-wider">CA</th>
             </tr>
           </thead>

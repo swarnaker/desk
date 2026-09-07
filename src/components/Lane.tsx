@@ -25,7 +25,7 @@ function deskPath(row: TokenRow) {
 
 function RadarCard({ row, watched, onWatch }: { row: TokenRow; watched: boolean; onWatch: () => void }) {
   const href = deskPath(row);
-  const quotePill = row.quote !== "UNKNOWN" ? ` (${row.quote})` : "";
+  const tokenLabel = row.quote !== "UNKNOWN" ? `${row.symbol}/${row.quote}` : row.symbol;
   return (
     <a href={href} className="block border-b border-hairline bg-surface p-3 hover:bg-card">
       <div className="flex items-start justify-between gap-2">
@@ -39,7 +39,7 @@ function RadarCard({ row, watched, onWatch }: { row: TokenRow; watched: boolean;
             >
               {watched ? "★" : "☆"}
             </button>
-            <h3 className="font-medium text-ink text-base break-words">{row.symbol}{quotePill}</h3>
+            <h3 className="font-medium text-ink text-base break-words">{tokenLabel}</h3>
             {row.birth ? <span className="shrink-0 border border-gold px-1 text-[9px] tracking-wide text-gold">BIRTH</span> : null}
             {row.wake ? <span className="shrink-0 border border-gold px-1 text-[9px] tracking-wide text-gold">WAKE</span> : null}
           </div>
@@ -68,13 +68,13 @@ function RadarCard({ row, watched, onWatch }: { row: TokenRow; watched: boolean;
 export function RadarRowView({ row, watched, onWatch }: { row: TokenRow; watched: boolean; onWatch: () => void }) {
   const buyCls = row.buyPct == null ? "text-mute" : row.buyPct >= 55 ? "text-buy" : row.buyPct < 45 ? "text-sell" : "text-mute";
   const href = deskPath(row);
-  const quotePill = row.quote !== "UNKNOWN" ? ` (${row.quote})` : "";
+  const tokenLabel = row.quote !== "UNKNOWN" ? `${row.symbol}/${row.quote}` : row.symbol;
   return (
     <tr className="row-h border-b border-hairline hover:bg-card">
       <td>
         <div className="flex min-w-0 items-center gap-1.5">
           <button type="button" aria-label={watched ? "WATCHED" : "WATCH"} title={watched ? "WATCHED" : "WATCH"} onClick={(e) => { e.stopPropagation(); onWatch(); }} className={"shrink-0 font-mono " + (watched ? "text-gold" : "text-mute")}>{watched ? "★" : "☆"}</button>
-          <a href={href} className="min-w-0 font-medium text-ink" aria-label={"Open " + row.symbol + " desk"}>{row.symbol}{quotePill}</a>
+          <a href={href} className="min-w-0 font-medium text-ink" aria-label={"Open " + tokenLabel + " desk"}>{tokenLabel}</a>
           {row.birth ? <span className="shrink-0 border border-gold px-1 text-[9px] tracking-wide text-gold">BIRTH</span> : null}
           {row.wake ? <span className="shrink-0 border border-gold px-1 text-[9px] tracking-wide text-gold">WAKE</span> : null}
         </div>
