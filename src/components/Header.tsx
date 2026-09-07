@@ -94,6 +94,7 @@ export function Header({ signedIn = false }: { signedIn?: boolean }) {
 
   const nav = [
     { href: "/", label: "RADAR" },
+    { href: "/first-hour", label: "FIRST HOUR" },
     { href: "/account", label: "ACCOUNT" },
   ];
 
