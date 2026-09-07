@@ -3,6 +3,7 @@ import { fetchPonsTokens } from "@/lib/firstHour/pons-data";
 import type { FirstHourResponse } from "@/lib/firstHour/types";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export async function GET() {
   try {
