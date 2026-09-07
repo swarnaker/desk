@@ -7,7 +7,7 @@ export function BottomNav() {
 
   const nav = [
     { href: "/", label: "RADAR" },
-    { href: "/first", label: "FIRST HOUR" },
+    { href: "/first-hour", label: "FIRST HOUR" },
     { href: "/account", label: "ACCOUNT" },
   ];
 
