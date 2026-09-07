@@ -1,54 +1,55 @@
 "use client";
-import { FirstHourTable } from "@/components/FirstHourTable";
-import type { RadarPayload } from "@/lib/line/types";
-import { useQuery } from "@tanstack/react-query";
-import { HealthFooter } from "@/components/HealthFooter";
+
+import { useState, useEffect } from "react";
+import type { FirstHourToken, FirstHourResponse, FilterType, SortType } from "@/lib/firstHour/types";
+import { FirstHourFeed } from "@/components/firstHour/Feed";
 
 export default function FirstHourPage() {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["first-hour"],
-    queryFn: async () => {
-      const res = await fetch("/api/first-hour", { cache: "no-store" });
-      if (!res.ok) throw new Error("Failed to fetch first hour data");
-      return (await res.json()) as RadarPayload;
-    },
-    refetchInterval: 20_000,
-  });
+  const [tokens, setTokens] = useState<FirstHourToken[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [health, setHealth] = useState<any[]>([]);
+  const [filter, setFilter] = useState<FilterType>("all");
+  const [sort, setSort] = useState<SortType>("heat");
+  const [search, setSearch] = useState("");
 
-  const tokens = data?.tokens || [];
-  const copiesHidden = data?.banners?.sameNameCopiesHidden ?? 0;
+  const fetchTokens = async () => {
+    try {
+      const res = await fetch("/api/first-hour", { cache: "no-store" });
+      if (res.ok) {
+        const data: FirstHourResponse = await res.json();
+        setTokens(data.tokens);
+        setHealth(data.health);
+      }
+    } catch (err) {
+      console.error("Failed to fetch first hour tokens:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTokens();
+    const interval = setInterval(fetchTokens, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
-        <h1 className="text-sm tracking-[0.14em] text-ink">FIRST HOUR</h1>
-        <p className="text-[11px] text-mute">
-          Pons bonding curve tokens under 1 hour old. Sorted by heat. Research/signal only.
-        </p>
-        {copiesHidden > 0 ? (
-          <div className="text-[11px] text-gold/90">
-            {copiesHidden} same-name copies hidden (one live + one COPY max)
-          </div>
-        ) : null}
+      <div className="flex items-baseline gap-3">
+        <h1 className="text-lg font-semibold tracking-[0.2em] text-gold">FIRST HOUR</h1>
+        <p className="text-xs text-mute">Pons bonding curve tokens under 1 hour</p>
       </div>
 
-      {isLoading ? (
-        <div className="text-[11px] text-mute">loading first hour…</div>
-      ) : null}
-      
-      {error ? (
-        <div className="text-[11px] text-sell">first hour error</div>
-      ) : null}
-      
-      {!isLoading && data?.stale ? (
-        <div className="border border-gold/30 bg-surface px-4 py-2 text-[11px] text-gold/90">
-          STALE · using cached data
-        </div>
-      ) : null}
-
-      <FirstHourTable rows={tokens} />
-      
-      <HealthFooter signedIn={true} />
+      <FirstHourFeed
+        tokens={tokens}
+        loading={loading}
+        filter={filter}
+        sort={sort}
+        search={search}
+        onFilterChange={setFilter}
+        onSortChange={setSort}
+        health={health}
+      />
     </div>
   );
 }
