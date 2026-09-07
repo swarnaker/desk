@@ -31,6 +31,7 @@ function copyToClipboard(text: string) {
 export function FirstHourTokenRow({ token, variant = "table" }: TokenRowProps) {
   const displayName = token.name || "Unknown";
   const displaySymbol = token.symbol || "???";
+  const tokenLabel = token.quoteSymbol ? `${displaySymbol}/${token.quoteSymbol}` : displaySymbol;
   const isHot = (token.heat || 0) >= 320 && (token.mcapUsd || 0) >= 50000;
 
   if (variant === "table") {
@@ -42,7 +43,7 @@ export function FirstHourTokenRow({ token, variant = "table" }: TokenRowProps) {
               {displayName}
             </div>
             <div className="font-mono text-[10px] text-mute">
-              {displaySymbol}
+              {tokenLabel}
             </div>
           </div>
         </td>
@@ -74,12 +75,6 @@ export function FirstHourTokenRow({ token, variant = "table" }: TokenRowProps) {
         </td>
 
         <td className="px-2 py-2">
-          <div className="chip shrink-0 text-[10px]">
-            {token.quoteSymbol || "—"}
-          </div>
-        </td>
-
-        <td className="px-2 py-2">
           <button
             onClick={() => copyToClipboard(token.token)}
             className="font-mono text-[10px] text-mute hover:text-gold"
@@ -96,7 +91,7 @@ export function FirstHourTokenRow({ token, variant = "table" }: TokenRowProps) {
     <div className="border border-hairline bg-surface p-2 hover:border-gold/30 transition-colors">
       <div className="flex items-center gap-2 mb-2">
         <span className="text-xs text-ink">{displayName}</span>
-        <span className="font-mono text-[10px] text-mute">{displaySymbol}</span>
+        <span className="font-mono text-[10px] text-mute">{tokenLabel}</span>
         <div
           className="ml-auto flex h-7 w-7 items-center justify-center rounded-full font-mono text-[11px] font-bold tabular"
           style={{
@@ -111,9 +106,7 @@ export function FirstHourTokenRow({ token, variant = "table" }: TokenRowProps) {
       <div className="font-mono text-[11px] mb-2 text-mute tabular">
         {formatAge(token.ageSec)} · ${formatNumber(token.mcapUsd)} · {token.graduated
           ? `$${formatNumber(token.liqUsd)}`
-          : formatPercent(token.curveFillPct)} · <span className="chip text-[9px]">
-          {token.quoteSymbol || "—"}
-        </span>
+          : formatPercent(token.curveFillPct)}
       </div>
 
       <button
