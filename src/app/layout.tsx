@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { Header } from "@/components/Header";
-import { BottomNav } from "@/components/BottomNav";
 import { HealthFooter } from "@/components/HealthFooter";
 import { BottomNav } from "@/components/BottomNav";
 import { COOKIE_NAME, verifySession } from "@/lib/server/auth";
