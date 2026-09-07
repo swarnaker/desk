@@ -94,7 +94,7 @@ export function Header({ signedIn = false }: { signedIn?: boolean }) {
 
   const nav = [
     { href: "/", label: "RADAR" },
-    { href: "/first-hour", label: "FIRST HOUR" },
+    { href: "/first", label: "FIRST HOUR" },
     { href: "/account", label: "ACCOUNT" },
   ];
 
@@ -105,7 +105,7 @@ export function Header({ signedIn = false }: { signedIn?: boolean }) {
           <span className="text-lg font-semibold tracking-[0.2em] text-gold">LINE</span>
           <span className={"h-2 w-2 rounded-full bg-live " + (live ? "live-dot" : "opacity-30")} />
         </Link>
-        <nav className="flex items-center gap-1 text-[11px] tracking-[0.18em] text-mute">
+        <nav className="hidden sm:flex items-center gap-1 text-[11px] tracking-[0.18em] text-mute">
           {nav.map((n, i) => (
             <span key={n.href} className="flex items-center gap-1">
               {i > 0 ? <span className="text-hairline">|</span> : null}
