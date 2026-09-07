@@ -26,11 +26,12 @@ function deskPath(row: TokenRow) {
 function RadarCard({ row, watched, onWatch }: { row: TokenRow; watched: boolean; onWatch: () => void }) {
   const href = deskPath(row);
   const tokenLabel = row.quote !== "UNKNOWN" ? `${row.symbol}/${row.quote}` : row.symbol;
+  const isHot = row.heat >= 320 && (row.mcapUsd ?? 0) >= 50000;
   return (
     <a href={href} className="block border-b border-hairline bg-surface p-3 hover:bg-card">
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mb-0.5">
             <button
               type="button"
               aria-label={watched ? "WATCHED" : "WATCH"}
@@ -39,26 +40,21 @@ function RadarCard({ row, watched, onWatch }: { row: TokenRow; watched: boolean;
             >
               {watched ? "★" : "☆"}
             </button>
-            <h3 className="font-medium text-ink text-base break-words">{tokenLabel}</h3>
+            <h3 className="font-medium text-ink text-sm break-words">{tokenLabel}</h3>
             {row.birth ? <span className="shrink-0 border border-gold px-1 text-[9px] tracking-wide text-gold">BIRTH</span> : null}
             {row.wake ? <span className="shrink-0 border border-gold px-1 text-[9px] tracking-wide text-gold">WAKE</span> : null}
           </div>
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[11px] text-mute tabular">
-            <span>{row.heat}</span>
-            <span>·</span>
-            <span>{formatAge(row.ageSec)}</span>
-            <span>·</span>
-            <span>{formatUsd(row.mcapUsd)}</span>
-            <span>·</span>
-            <span>{formatUsd(row.vol1hUsd)}</span>
-          </div>
-          <div className="mt-1.5">
-            <CopyCa ca={row.ca} />
+          <div className="font-mono text-[11px] text-mute tabular">
+            {formatAge(row.ageSec)} · {formatUsd(row.mcapUsd)} · {formatUsd(row.liqUsd)}
           </div>
         </div>
-        <div className="shrink-0 text-right font-mono text-[11px] tabular">
-          <div className="text-base font-medium">{row.heat}</div>
-          {riskLabel(row) ? <div className={"text-[10px] " + riskColor(riskLabel(row)!)}>{riskLabel(row)}</div> : null}
+        <div className="shrink-0 text-right">
+          <div className={`heat-circle mb-1.5 ${isHot ? "bg-gold text-bg" : "bg-surface text-mute"}`}>
+            {row.heat}
+          </div>
+          <div className="font-mono text-[10px] text-mute">
+            <CopyCa ca={row.ca} />
+          </div>
         </div>
       </div>
     </a>
@@ -69,8 +65,9 @@ export function RadarRowView({ row, watched, onWatch }: { row: TokenRow; watched
   const buyCls = row.buyPct == null ? "text-mute" : row.buyPct >= 55 ? "text-buy" : row.buyPct < 45 ? "text-sell" : "text-mute";
   const href = deskPath(row);
   const tokenLabel = row.quote !== "UNKNOWN" ? `${row.symbol}/${row.quote}` : row.symbol;
+  const isHot = row.heat >= 320 && (row.mcapUsd ?? 0) >= 50000;
   return (
-    <tr className="row-h border-b border-hairline hover:bg-card">
+    <tr className="border-b border-hairline hover:bg-card" style={{ height: "44px" }}>
       <td>
         <div className="flex min-w-0 items-center gap-1.5">
           <button type="button" aria-label={watched ? "WATCHED" : "WATCH"} title={watched ? "WATCHED" : "WATCH"} onClick={(e) => { e.stopPropagation(); onWatch(); }} className={"shrink-0 font-mono " + (watched ? "text-gold" : "text-mute")}>{watched ? "★" : "☆"}</button>
@@ -79,20 +76,16 @@ export function RadarRowView({ row, watched, onWatch }: { row: TokenRow; watched
           {row.wake ? <span className="shrink-0 border border-gold px-1 text-[9px] tracking-wide text-gold">WAKE</span> : null}
         </div>
       </td>
-      <td className="whitespace-nowrap">{row.heat}</td>
+      <td className="whitespace-nowrap">
+        <div className={`heat-circle ${isHot ? "bg-gold text-bg" : "bg-surface text-mute"}`}>
+          {row.heat}
+        </div>
+      </td>
       <td className="whitespace-nowrap text-mute">{formatAge(row.ageSec)}</td>
       <td className="whitespace-nowrap">{formatUsd(row.mcapUsd)}</td>
       <td className="whitespace-nowrap">{formatUsd(row.liqUsd)}</td>
       <td className="whitespace-nowrap">{formatUsd(row.vol1hUsd)}</td>
       <td className={"whitespace-nowrap " + buyCls}>{formatPct(row.buyPct)}</td>
-      <td className="whitespace-nowrap">
-        <span className="flex gap-1.5 text-[10px] tracking-wide">
-          <a className="text-mute hover:text-gold" href={row.links.gmgn} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>GMGN</a>
-          <a className="text-mute hover:text-gold" href={row.links.dex} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>DEX</a>
-          <a className="text-mute hover:text-gold" href={row.links.scan} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>SCAN</a>
-        </span>
-      </td>
-      <td className="whitespace-nowrap text-mute">{row.padSub || row.pad}</td>
       <td className="whitespace-nowrap font-mono text-mute"><CopyCa ca={row.ca} /></td>
     </tr>
   );
@@ -142,20 +135,18 @@ export function RadarTable({ rows, watched, onWatch, sortColumn, sortDirection, 
                   Liq{sortIndicator("liq")}
                 </th>
                 <th className="whitespace-nowrap font-normal cursor-pointer hover:text-gold" onClick={() => onSort("vol1h")}>
-                  1h vol{sortIndicator("vol1h")}
+                  1h{sortIndicator("vol1h")}
                 </th>
                 <th className="whitespace-nowrap font-normal cursor-pointer hover:text-gold" onClick={() => onSort("buyPct")}>
                   Buy%{sortIndicator("buyPct")}
                 </th>
-                <th className="whitespace-nowrap font-normal">Links</th>
-                <th className="whitespace-nowrap font-normal">Pad</th>
                 <th className="whitespace-nowrap font-normal">CA</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-3 py-8 text-center text-[11px] text-mute">empty</td>
+                  <td colSpan={8} className="px-3 py-8 text-center text-[11px] text-mute">empty</td>
                 </tr>
               ) : (
                 rows.map((r) => (

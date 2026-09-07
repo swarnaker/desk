@@ -36,7 +36,10 @@ export default function FirstHourPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-baseline gap-3">
-        <h1 className="text-lg font-semibold tracking-[0.2em] text-gold">FIRST HOUR</h1>
+        <h1 className="text-lg font-semibold tracking-[0.2em] text-gold">
+          <span className="hidden sm:inline">FIRST HOUR</span>
+          <span className="sm:hidden">1H</span>
+        </h1>
         <p className="text-xs text-mute">Pons bonding curve tokens under 1 hour</p>
       </div>
 

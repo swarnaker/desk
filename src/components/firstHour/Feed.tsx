@@ -27,7 +27,7 @@ export function FirstHourFeed({
   const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
-    const checkDesktop = () => setIsDesktop(window.innerWidth >= 900);
+    const checkDesktop = () => setIsDesktop(window.innerWidth >= 640);
     checkDesktop();
     window.addEventListener("resize", checkDesktop);
     return () => window.removeEventListener("resize", checkDesktop);
@@ -129,29 +129,33 @@ export function FirstHourFeed({
             : "No Pons tokens under 1 hour"}
         </div>
       ) : isDesktop ? (
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="border-b border-hairline">
-              <th className="px-2 py-2 text-left text-xs text-mute tracking-wider">Token</th>
-              <th className="px-2 py-2 text-left text-xs text-mute tracking-wider">Heat</th>
-              <th className="px-2 py-2 text-left text-xs text-mute tracking-wider">Age</th>
-              <th className="px-2 py-2 text-left text-xs text-mute tracking-wider">Mcap</th>
-              <th className="px-2 py-2 text-left text-xs text-mute tracking-wider">Liq/Curve%</th>
-              <th className="px-2 py-2 text-left text-xs text-mute tracking-wider">CA</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((token) => (
-              <FirstHourTokenRow
-                key={token.token}
-                token={token}
-                variant="table"
-              />
-            ))}
-          </tbody>
-        </table>
+        <section className="border border-hairline bg-surface">
+          <div className="max-w-full overflow-x-auto">
+            <table className="radar-table border-collapse text-left text-[11px]">
+              <thead>
+                <tr className="border-b border-hairline text-[10px] uppercase tracking-wide text-mute">
+                  <th className="whitespace-nowrap font-normal">Token</th>
+                  <th className="whitespace-nowrap font-normal">Heat</th>
+                  <th className="whitespace-nowrap font-normal">Age</th>
+                  <th className="whitespace-nowrap font-normal">Mcap</th>
+                  <th className="whitespace-nowrap font-normal">Liq/Curve%</th>
+                  <th className="whitespace-nowrap font-normal">CA</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((token) => (
+                  <FirstHourTokenRow
+                    key={token.token}
+                    token={token}
+                    variant="table"
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
       ) : (
-        <div className="space-y-2">
+        <div className="border border-hairline bg-surface">
           {filtered.map((token) => (
             <FirstHourTokenRow
               key={token.token}
