@@ -7,7 +7,7 @@ interface TokenRowProps {
 
 function formatAge(ageSec?: number): string {
   if (ageSec == null) return "—";
-  const min = Math.round(ageSec / 60);
+  const min = Math.floor(ageSec / 60);
   return `${min}m`;
 }
 
@@ -35,10 +35,10 @@ export function FirstHourTokenRow({ token, variant = "table" }: TokenRowProps) {
 
   if (variant === "table") {
     return (
-      <tr className="border-b border-hairline hover:bg-surface/50 transition-colors">
-        <td className="px-2 py-2">
+      <tr className="border-b border-hairline hover:bg-card">
+        <td className="px-2 py-2.5">
           <div>
-            <div className="text-xs text-ink">
+            <div className="text-xs text-ink font-medium">
               {displayName}
             </div>
             <div className="font-mono text-[10px] text-mute">
@@ -47,33 +47,27 @@ export function FirstHourTokenRow({ token, variant = "table" }: TokenRowProps) {
           </div>
         </td>
 
-        <td className="px-2 py-2">
-          <div
-            className="flex h-7 w-7 items-center justify-center rounded-full font-mono text-[11px] font-bold tabular"
-            style={{
-              backgroundColor: isHot ? "#E8B923" : "#2a2a2a",
-              color: isHot ? "#0a0a0a" : "#888",
-            }}
-          >
+        <td className="px-2 py-2.5">
+          <div className={`heat-circle ${isHot ? "bg-gold text-bg" : "bg-surface text-mute"}`}>
             {token.heat || 0}
           </div>
         </td>
 
-        <td className="px-2 py-2 font-mono text-xs tabular text-mute">
+        <td className="px-2 py-2.5 font-mono text-[11px] tabular text-mute">
           {formatAge(token.ageSec)}
         </td>
 
-        <td className="px-2 py-2 font-mono text-xs tabular text-mute">
+        <td className="px-2 py-2.5 font-mono text-xs tabular text-mute">
           ${formatNumber(token.mcapUsd)}
         </td>
 
-        <td className="px-2 py-2 font-mono text-xs tabular text-mute">
+        <td className="px-2 py-2.5 font-mono text-xs tabular text-mute">
           {token.graduated
             ? `$${formatNumber(token.liqUsd)}`
             : formatPercent(token.curveFillPct)}
         </td>
 
-        <td className="px-2 py-2">
+        <td className="px-2 py-2.5">
           <button
             onClick={() => copyToClipboard(token.token)}
             className="font-mono text-[10px] text-mute hover:text-gold"
@@ -87,33 +81,33 @@ export function FirstHourTokenRow({ token, variant = "table" }: TokenRowProps) {
   }
 
   return (
-    <div className="border border-hairline bg-surface p-2 hover:border-gold/30 transition-colors">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-xs text-ink">{displayName}</span>
-        <span className="font-mono text-[10px] text-mute">{tokenLabel}</span>
-        <div
-          className="ml-auto flex h-7 w-7 items-center justify-center rounded-full font-mono text-[11px] font-bold tabular"
-          style={{
-            backgroundColor: isHot ? "#E8B923" : "#2a2a2a",
-            color: isHot ? "#0a0a0a" : "#888",
-          }}
-        >
-          {token.heat || 0}
+    <div className="border-b border-hairline bg-surface p-3 hover:bg-card">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="text-xs text-ink font-medium mb-0.5">
+            {displayName}
+          </div>
+          <div className="font-mono text-[10px] text-mute mb-2">
+            {tokenLabel}
+          </div>
+          <div className="font-mono text-[11px] text-mute tabular">
+            {formatAge(token.ageSec)} · ${formatNumber(token.mcapUsd)} · {token.graduated
+              ? `$${formatNumber(token.liqUsd)}`
+              : formatPercent(token.curveFillPct)}
+          </div>
+        </div>
+        <div className="shrink-0 text-right">
+          <div className={`heat-circle mb-1.5 ${isHot ? "bg-gold text-bg" : "bg-card text-mute"}`}>
+            {token.heat || 0}
+          </div>
+          <button
+            onClick={() => copyToClipboard(token.token)}
+            className="font-mono text-[10px] text-mute hover:text-gold"
+          >
+            {token.token.slice(0, 6)}...{token.token.slice(-4)}
+          </button>
         </div>
       </div>
-
-      <div className="font-mono text-[11px] mb-2 text-mute tabular">
-        {formatAge(token.ageSec)} · ${formatNumber(token.mcapUsd)} · {token.graduated
-          ? `$${formatNumber(token.liqUsd)}`
-          : formatPercent(token.curveFillPct)}
-      </div>
-
-      <button
-        onClick={() => copyToClipboard(token.token)}
-        className="font-mono text-[10px] text-mute hover:text-gold"
-      >
-        {token.token.slice(0, 6)}...{token.token.slice(-4)}
-      </button>
     </div>
   );
 }

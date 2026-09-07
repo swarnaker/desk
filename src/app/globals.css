@@ -22,8 +22,6 @@ body {
 .chip { @apply px-2 py-0.5 text-[11px] tracking-wide border border-hairline text-mute; }
 .chip-on { background: #E8B923; color: #07080B; border-color: #E8B923; }
 
-.row-h { height: 54px; }
-
 .radar-table {
   table-layout: auto;
   width: 100%;
@@ -35,7 +33,7 @@ body {
 }
 .radar-table th:nth-child(1),
 .radar-table td:nth-child(1) {
-  max-width: 240px;
+  max-width: 220px;
   word-break: break-word;
   white-space: normal;
 }
@@ -43,22 +41,18 @@ body {
 .radar-table td:nth-child(2),
 .radar-table th:nth-child(3),
 .radar-table td:nth-child(3) {
-  width: 56px;
   font-family: ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
+  font-size: 11px;
 }
 .radar-table th:nth-child(4),
 .radar-table td:nth-child(4),
 .radar-table th:nth-child(5),
 .radar-table td:nth-child(5),
 .radar-table th:nth-child(6),
-.radar-table td:nth-child(6) {
-  font-family: ui-monospace, monospace;
-  font-variant-numeric: tabular-nums;
-}
+.radar-table td:nth-child(6),
 .radar-table th:nth-child(7),
 .radar-table td:nth-child(7) {
-  width: 56px;
   font-family: ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
 }
@@ -73,6 +67,19 @@ body {
 .radar-table th:nth-child(10),
 .radar-table td:nth-child(10) {
   font-family: ui-monospace, monospace;
+}
+
+.heat-circle {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
 
 /* Mobile responsive */

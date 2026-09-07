@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
 import { HealthFooter } from "@/components/HealthFooter";
+import { BottomNav } from "@/components/BottomNav";
 import { COOKIE_NAME, verifySession } from "@/lib/server/auth";
 import { Providers } from "./providers";
 import "./globals.css";
@@ -39,7 +40,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="min-h-screen bg-bg text-ink">
         <Providers>
           {signedIn ? <Header signedIn /> : null}
-          <main className="mx-auto max-w-[1600px] px-3 pb-16 pt-2">{children}</main>
+          <main className="mx-auto max-w-[1600px] px-3 pb-16 pt-2 max-sm:pb-20">{children}</main>
           {signedIn ? <HealthFooter signedIn /> : null}
           {signedIn ? <BottomNav /> : null}
         </Providers>
