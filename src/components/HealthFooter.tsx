@@ -75,7 +75,7 @@ export function HealthFooter({ signedIn = false, page = "radar" }: { signedIn?: 
   const hiddenN = data?.banners?.hiddenUnderAge ?? 0;
   const hiddenLabel = hiddenUnderLabel(ageGate);
   const tg = findSrc(sources, "telegram");
-  const tgLine = tg?.ok ? "telegram" : "telegram not wired";
+  const tgLine = tg?.ok ? "telegram wired" : "telegram None";
 
   return (
     <footer className="fixed bottom-0 left-0 right-0 border-t border-hairline bg-bg/95 font-mono text-[11px] tabular text-mute">

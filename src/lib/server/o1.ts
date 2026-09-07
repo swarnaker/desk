@@ -76,7 +76,8 @@ async function fetchO1Sort(
   sort: "trending",
   key: string,
 ): Promise<FactoryLaunch[]> {
-  const url = O1_LAUNCH_API + "?chain_id=" + chainId + "&market=all&sort=" + sort + "&limit=50";
+  const limit = (chainId === 8453 || chainId === 4663) ? 200 : 50;
+  const url = O1_LAUNCH_API + "?chain_id=" + chainId + "&market=all&sort=" + sort + "&limit=" + limit;
   const res = await fetch(url, {
     headers: {
       accept: "application/json",
@@ -84,7 +85,7 @@ async function fetchO1Sort(
       "x-api-key": key,
     },
     cache: "no-store",
-    signal: AbortSignal.timeout(4000),
+    signal: AbortSignal.timeout(8000),
   });
   if (res.status === 401) throw new Error("unauthorized");
   if (!res.ok) throw new Error("HTTP " + res.status);

@@ -23,6 +23,12 @@ const AGES: { id: AgeGate; label: string }[] = [
   { id: "any", label: "any" },
 ];
 
+const QUOTES: { id: "ALL" | "ETH" | "STOCK"; label: string }[] = [
+  { id: "ALL", label: "All" },
+  { id: "ETH", label: "ETH" },
+  { id: "STOCK", label: "STOCK" },
+];
+
 export function FilterBar({
   filters, setFilters, watchCount,
 }: {
@@ -43,6 +49,12 @@ export function FilterBar({
         {AGES.map((a) => (
           <Chip key={a.id} on={filters.ageGate === a.id} onClick={() => set({ ageGate: a.id })}>
             {a.label}
+          </Chip>
+        ))}
+        <span className="mx-1 text-hairline">|</span>
+        {QUOTES.map((q) => (
+          <Chip key={q.id} on={filters.quoteFilter === q.id} onClick={() => set({ quoteFilter: q.id })}>
+            {q.label}
           </Chip>
         ))}
         <span className="mx-1 text-hairline">|</span>

@@ -25,6 +25,7 @@ export const DEFAULT_FILTERS: Filters = {
   early: false,
   hideRisky: false,
   stocks: false,
+  quoteFilter: "ALL",
 };
 
 /** PUMP/PONS/O1/BASE/LONG/VIRTUALS/CLANKER exact. BOTH, ALL, or omitted = PONS or O1 only (not PUMP, not BASE, not LONG, not VIRTUALS, not CLANKER). */
@@ -172,6 +173,14 @@ function matchRow(row: TokenRow, f: Filters, watchSet: Set<string>): boolean {
   // Quiet $30k+ Pons/O1 books stay on Both (isPonsMcapBook).
   if (!f.early && row.lane === "BOOK" && !((row.vol1hUsd ?? 0) > 0) && !watched(row, watchSet) && !isPonsMcapBook(row, f, watchSet)) return false;
   if (!padMatches(row, f.pad)) return false;
+  // Quote filter
+  if (f.quoteFilter === "ETH" && row.quote !== "ETH" && row.quote !== "WETH") return false;
+  if (f.quoteFilter === "STOCK") {
+    const isStock = row.quote === "STOCK" || 
+      row.quote === "USDG" || 
+      (row.quote !== "ETH" && row.quote !== "WETH" && row.quote !== "USDC" && row.quote !== "SOL" && row.quote !== "UNKNOWN");
+    if (!isStock) return false;
+  }
   if (f.liqMin && (row.liqUsd ?? 0) < f.liqMin) return false;
   if (f.mcapMin && (row.mcapUsd ?? 0) < f.mcapMin) return false;
   const age = row.ageSec ?? 0;

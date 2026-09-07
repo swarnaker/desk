@@ -108,6 +108,8 @@ export type Filters = {
   early: boolean;
   hideRisky: boolean;
   stocks: boolean;
+  /** Quote filter: ALL | ETH | STOCK */
+  quoteFilter: "ALL" | "ETH" | "STOCK";
 };
 
 export type HeatInput = {
