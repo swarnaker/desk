@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { Header } from "@/components/Header";
+import { BottomNav } from "@/components/BottomNav";
 import { HealthFooter } from "@/components/HealthFooter";
 import { COOKIE_NAME, verifySession } from "@/lib/server/auth";
 import { Providers } from "./providers";
@@ -40,6 +41,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           {signedIn ? <Header signedIn /> : null}
           <main className="mx-auto max-w-[1600px] px-3 pb-16 pt-2">{children}</main>
           {signedIn ? <HealthFooter signedIn /> : null}
+          {signedIn ? <BottomNav /> : null}
         </Providers>
       </body>
     </html>

@@ -82,9 +82,9 @@ body {
     -webkit-overflow-scrolling: touch;
   }
   
-  /* Mobile body padding for sticky footer */
-  body {
-    padding-bottom: 48px;
+  /* Mobile: add safe area padding for bottom nav (52px nav height + 16px buffer) */
+  main {
+    padding-bottom: calc(68px + env(safe-area-inset-bottom)) !important;
   }
 }
 
