@@ -7,9 +7,8 @@ interface TokenRowProps {
 
 function formatAge(ageSec?: number): string {
   if (ageSec == null) return "—";
-  const min = Math.floor(ageSec / 60);
-  const sec = ageSec % 60;
-  return `${min}m${sec}s`;
+  const min = Math.round(ageSec / 60);
+  return `${min}m`;
 }
 
 function formatNumber(n?: number): string {
