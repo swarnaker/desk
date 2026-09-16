@@ -1,21 +1,21 @@
 import { DAY, HOUR, STRETCH_FILL, TAPE_PRINT_BUYERS, TAPE_PRINT_VOL1H, WAKE_UNIQUE_BUYERS_MIN, type Lane, type Pad, type Stage, type TokenRow } from "./types";
 
-/** PONS/PUMP still on the bonding curve. o1 is never on-curve. */
+/** PONS/PUMP still on the bonding curve. o1 and ARC are never on-curve. */
 export function isOnCurve(row: { pad: Pad; stage: Stage }): boolean {
-  if (row.pad === "O1") return false;
+  if (row.pad === "O1" || row.pad === "ARC") return false;
   return (row.pad === "PONS" || row.pad === "PUMP") && row.stage === "ON_CURVE";
 }
 
 /** Locked-v4 / graduated book. */
 function isLockedV4(pad: Pad, stage: Stage): boolean {
-  if (pad === "O1") return stage === "LIVE_POOL" || stage === "GRADUATED" || stage === "MOVING";
+  if (pad === "O1" || pad === "ARC") return stage === "LIVE_POOL" || stage === "GRADUATED" || stage === "MOVING";
   if (pad === "PONS") return stage === "GRADUATED" || stage === "LIVE_POOL" || stage === "MOVING";
   if (pad === "PUMP") return stage === "GRADUATED" || stage === "MOVING";
   return false;
 }
 
 /**
- * Survived = graduated / moving / locked-v4 / o1 live. Never raw ON_CURVE.
+ * Survived = graduated / moving / locked-v4 / o1 live / arc live. Never raw ON_CURVE.
  * BASE: not ON_CURVE; LIVE_POOL/GRADUATED/MOVING; CASHCAT padSub RH with liq is survived book.
  */
 export function isSurvived(row: {
@@ -24,7 +24,7 @@ export function isSurvived(row: {
   padSub?: string;
   liqUsd?: number;
 }): boolean {
-  if (row.pad === "O1") {
+  if (row.pad === "O1" || row.pad === "ARC") {
     return row.stage === "LIVE_POOL" || row.stage === "GRADUATED" || row.stage === "MOVING";
   }
   if (row.pad === "PONS") {
@@ -68,9 +68,9 @@ export function inferLane(opts: {
   liqUsd?: number;
 }): Lane {
   const age = opts.ageSec;
-  const fill = opts.pad === "O1" ? undefined : opts.curveFillPct;
+  const fill = opts.pad === "O1" || opts.pad === "ARC" ? undefined : opts.curveFillPct;
 
-  // STRETCH = ON_CURVE AND fill >= 0.70 AND (Pons/Pump). o1 never STRETCH.
+  // STRETCH = ON_CURVE AND fill >= 0.70 AND (Pons/Pump). o1 and ARC never STRETCH.
   // Server still tags these so when Curve is on they land in STRETCH.
   if (isOnCurve(opts) && (fill ?? 0) >= STRETCH_FILL) {
     return "STRETCH";
@@ -81,7 +81,7 @@ export function inferLane(opts: {
     if (age == null && isLockedMajor(opts)) return "BOOK";
     if (age != null && age >= DAY) return "BOOK";
     // NEW = survived AND age < 24h (typically age >= 6h via default gate).
-    // o1 6h–24h LIVE_POOL → NEW. 1h/2h chips can put younger survived names here.
+    // o1 and ARC 6h–24h LIVE_POOL → NEW. 1h/2h chips can put younger survived names here.
     return "NEW";
   }
 
@@ -118,7 +118,7 @@ export function computeWake(row: {
   vol24hUsd?: number;
   uniqueBuyers1h?: number | null;
 }): boolean {
-  if (row.pad !== "PONS" && row.pad !== "O1") return false;
+  if (row.pad !== "PONS" && row.pad !== "O1" && row.pad !== "ARC") return false;
   if (row.ageSec == null || row.ageSec < DAY) return false;
   if (row.vol1hUsd == null) return false;
   const vol24 = row.vol24hUsd;

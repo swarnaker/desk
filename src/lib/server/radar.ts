@@ -100,6 +100,13 @@ function isOfficialO1Sources(sources: Iterable<string>): boolean {
   return false;
 }
 
+function isOfficialArcSources(sources: Iterable<string>): boolean {
+  for (const s of sources) {
+    if (s === "arc" || s.startsWith("arc:")) return true;
+  }
+  return false;
+}
+
 function upsertOfficial(
   map: Map<string, Cand>,
   l: FactoryLaunch,
@@ -397,6 +404,7 @@ function buildTokenRows(
       if (isProtocol(old.ca) || isQuoteAddr(old.ca, old.symbol)) continue;
       if (old.pad === "PONS" && !isOfficialPonsSources(old.sources || [])) continue;
       if (old.pad === "O1" && !isOfficialO1Sources(old.sources || []) && !isCanonical(old.chain, old.ca)) continue;
+      if (old.pad === "ARC" && !isOfficialArcSources(old.sources || [])) continue;
       const src = old.sources || [];
       if (src.some((s) => s === "dex:pons" || s === "dex:robinhood" || s === "dex:o1")
         && !isOfficialPonsSources(src) && !isOfficialO1Sources(src) && !isCanonical(old.chain, old.ca)) continue;
@@ -405,7 +413,7 @@ function buildTokenRows(
       const hollow = row.mcapUsd == null && row.liqUsd == null && row.ageSec == null;
       if (hollow && !fromFactory) continue;
       if (row.stage === "FACTORY" && !fromFactory) {
-        row.stage = row.pad === "PONS" || row.pad === "PUMP" ? "ON_CURVE" : (row.pad === "O1" ? "LIVE_POOL" : "GRADUATED");
+        row.stage = row.pad === "PONS" || row.pad === "PUMP" ? "ON_CURVE" : (row.pad === "O1" || row.pad === "ARC" ? "LIVE_POOL" : "GRADUATED");
       }
       tokens.push(row);
       mergedFromSnapshot += 1;
@@ -422,7 +430,7 @@ function buildTokenRows(
     const old = prevById.get(t.id);
     if (t.vol24hUsd == null && old?.vol24hUsd != null) t.vol24hUsd = old.vol24hUsd;
     if (t.stage === "FACTORY" && !(t.sources || []).includes("factory")) {
-      t.stage = t.pad === "PONS" || t.pad === "PUMP" ? "ON_CURVE" : (t.pad === "O1" ? "LIVE_POOL" : "GRADUATED");
+      t.stage = t.pad === "PONS" || t.pad === "PUMP" ? "ON_CURVE" : (t.pad === "O1" || t.pad === "ARC" ? "LIVE_POOL" : "GRADUATED");
     }
     t.risk = riskFromFlags(
       (t.risk?.flags || []).filter((f) => f !== "UNCHECKED" && f !== "THIN LP" && f !== "UNK"),
@@ -445,7 +453,7 @@ function buildTokenRows(
       mcapUsd: t.mcapUsd,
       liqUsd: t.liqUsd,
       moving: t.moving,
-      curveFillPct: t.pad === "O1" ? undefined : t.curveFillPct,
+      curveFillPct: t.pad === "O1" || t.pad === "ARC" ? undefined : t.curveFillPct,
       inTaxWindow: t.stage === "ANTI_SNIPE",
       sameNameCopies: t.sameNameCopies,
       bundlePct: t.bundlePct ?? undefined,
@@ -460,7 +468,7 @@ function buildTokenRows(
       pad: t.pad,
       stage: t.stage,
       ageSec: t.ageSec,
-      curveFillPct: t.pad === "O1" ? undefined : t.curveFillPct,
+      curveFillPct: t.pad === "O1" || t.pad === "ARC" ? undefined : t.curveFillPct,
       printing: (t.vol1hUsd ?? 0) > 0 && (t.buyPct ?? 0) >= 50,
       factoryOnly: isFactoryBeforePair(t),
       vol1hUsd: t.vol1hUsd,

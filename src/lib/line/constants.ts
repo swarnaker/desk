@@ -15,6 +15,8 @@ export const UNI_V4_POOL_MANAGER = "0x8366a39cc670b4001a1121b8f6a443a643e40951";
 export const O1_BASE_FACTORY = "0xa52ad458cE0282a971ecC71C051A32f28946bb9F";
 export const O1_RWA_FACTORY = "0xFf70918Ef17A2D74d683a8297813B177BaFaD1f4";
 export const O1_RH_FACTORY = "0x411F21283D3E492BC395027329e08f9F4F560Ba5";
+export const O1_ARC_FACTORY = "0xeE3E862Efde6DCd6DF5648AF0E2731B9D1dF4605";
+export const ARCPAD_FACTORY = "0x24196cd6e534cfce8f480b53e70809b68ea86f29";
 export const PONS_GRADUATED_CATALOG_URL =
   "https://www.ponsfamily.com/api/pons-launches/graduations?catalog=1&v=8";
 export const O1_LAUNCH_API = "https://api.launch.o1.exchange/v1/tokens";
@@ -41,6 +43,8 @@ const PROTO = [
   O1_BASE_FACTORY,
   O1_RWA_FACTORY,
   O1_RH_FACTORY,
+  O1_ARC_FACTORY,
+  ARCPAD_FACTORY,
 ].map((a) => a.toLowerCase());
 
 export const PROTOCOL_SET = new Set(PROTO);
