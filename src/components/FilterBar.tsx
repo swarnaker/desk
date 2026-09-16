@@ -17,6 +17,13 @@ const PADS: { id: "PONS" | "O1" | "BOTH"; label: string }[] = [
   { id: "BOTH", label: "Both" },
 ];
 
+const OPTIONAL_PADS: { id: "LONG" | "VIRTUALS" | "CLANKER" | "ARC"; label: string }[] = [
+  { id: "LONG", label: "Long" },
+  { id: "VIRTUALS", label: "Virtuals" },
+  { id: "CLANKER", label: "Clanker" },
+  { id: "ARC", label: "ARC" },
+];
+
 const AGES: { id: AgeGate; label: string }[] = [
   { id: "1h", label: "1h" },
   { id: "6h", label: "6h" },
@@ -41,6 +48,12 @@ export function FilterBar({
     <div className="overflow-x-auto border border-hairline bg-surface p-2 text-[11px]">
       <div className="flex min-w-max items-center gap-1.5 sm:flex-wrap sm:min-w-0">
         {PADS.map((p) => (
+          <Chip key={p.id} on={filters.pad === p.id} onClick={() => set({ pad: p.id })}>
+            {p.label}
+          </Chip>
+        ))}
+        <span className="mx-1 text-hairline">|</span>
+        {OPTIONAL_PADS.map((p) => (
           <Chip key={p.id} on={filters.pad === p.id} onClick={() => set({ pad: p.id })}>
             {p.label}
           </Chip>
