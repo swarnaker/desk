@@ -107,6 +107,7 @@ export function rowIsStretch(row: TokenRow): boolean {
 /**
  * Hidden unless ageSec >= minAge, OR (Curve chip on AND Pons/Pump stretch fill >= 0.70),
  * OR watched / markFirst (client watch set). Stretch does NOT punch the default board.
+ * ARC pad filter bypasses the age gate entirely (shows age 0+).
  * HIGH-HEAT EXCEPTION: heat >= 320 AND risk not RED AND not ON_CURVE AND (uniqueBuyers1h >= 10 OR vol1hUsd >= 2000)
  */
 export function passesAgeGate(
@@ -115,6 +116,8 @@ export function passesAgeGate(
   watchSet: Set<string> = new Set(),
 ): boolean {
   if (watched(row, watchSet)) return true;
+  // ARC pad filter bypasses age gate
+  if (f.pad === "ARC") return true;
   if (f.curve && rowIsStretch(row)) return true;
   if (f.ageGate === "any") return true;
   // Missing age only if survived locked major (BOOK).

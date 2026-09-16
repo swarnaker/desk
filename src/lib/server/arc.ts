@@ -1,198 +1,268 @@
-import { isProtocol } from "@/lib/line/constants";
+import fs from "fs";
+import path from "path";
+import { isEvmCa } from "@/lib/line/ca";
+import { isProtocol, isQuoteAddr, O1_LAUNCH_API } from "@/lib/line/constants";
 import type { HealthSource } from "@/lib/line/types";
 import type { FactoryLaunch } from "./factory";
 import { fail } from "./http";
 
-const ARC_MAINNET_CHAIN_ID = 5042;
-const ARC_RPC_DEFAULT = "https://rpc.mainnet.arc.io";
-const ARC_O1_FACTORY = "0xeE3E862Efde6DCd6DF5648AF0E2731B9D1dF4605";
-const ARC_ARCPAD_FACTORY = "0x24196cd6e534cfce8f480b53e70809b68ea86f29";
-const TOKEN_LAUNCHED_TOPIC0 = "0xdb51ea9ad51ab453a65a4cb7e60c3cb378c9501bb002609f8f97778fb6c4235a";
+const CACHE_MS = 60_000;
+const LAST_DIR = path.join(process.cwd(), "data");
 
-type ArcPadToken = {
-  chainId?: number;
-  address?: string;
-  name?: string;
-  symbol?: string;
-  image?: string;
-  marketCapUSD?: number;
-  liquidityUSD?: number;
-  volume24h?: number;
-  deployer?: string;
-  createdAt?: string;
-};
+const ARCPAD_API = "https://arcpad.meme/api/tokens";
+const ARC_CHAIN_ID = 5042;
 
-type RpcLog = {
-  address?: string;
-  topics?: string[];
-  data?: string;
-  blockNumber?: string;
-  transactionHash?: string;
-};
+// Arc factories
+const O1_ARC_FACTORY = "0xeE3E862Efde6DCd6DF5648AF0E2731B9D1dF4605";
+const ARCPAD_FACTORY = "0x24196cd6e534cfce8f480b53e70809b68ea86f29";
 
-function topicToAddress(topic: string | undefined): string | null {
-  if (!topic || topic.length < 66) return null;
-  const addr = "0x" + topic.slice(-40);
-  return /^0x[a-fA-F0-9]{40}$/.test(addr) ? addr : null;
+function num(v: unknown): number | undefined {
+  if (v == null || v === "") return undefined;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : undefined;
 }
 
-async function rpc<T>(url: string, method: string, params: unknown[], source: string): Promise<T> {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-    signal: AbortSignal.timeout(4000),
-    cache: "no-store",
-  });
-  const json = (await res.json()) as { result?: T; error?: { message?: string } };
-  if (!res.ok || json.error) throw new Error(source + ": " + (json.error?.message || "HTTP " + res.status));
-  return json.result as T;
+function asRecord(v: unknown): Record<string, unknown> | null {
+  return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
 }
 
-function parseArcFactoryLog(log: RpcLog, factory: string): FactoryLaunch | null {
-  const topics = log.topics || [];
-  if (!topics[0] || topics[0].toLowerCase() !== TOKEN_LAUNCHED_TOPIC0) return null;
-  const token = topicToAddress(topics[1]);
-  if (!token || isProtocol(token)) return null;
-  const deployer = topicToAddress(topics[2]) || "0x0000000000000000000000000000000000000000";
+function usdOf(obj: unknown): number | undefined {
+  const rec = asRecord(obj);
+  if (!rec) return num(obj);
+  return num(rec.usd);
+}
+
+function mapArcPadItem(row: unknown): FactoryLaunch | null {
+  const r = asRecord(row);
+  if (!r) return null;
+  
+  const chainId = num(r.chainId);
+  if (chainId !== ARC_CHAIN_ID) return null;
+
+  const token = typeof r.address === "string" ? r.address : "";
+  if (!isEvmCa(token) || isProtocol(token)) return null;
+  
+  const symbol = typeof r.symbol === "string" ? r.symbol : undefined;
+  if (isQuoteAddr(token, symbol)) return null;
+  
+  const name = typeof r.name === "string" ? r.name : undefined;
+  const logo = typeof r.logoUrl === "string" ? r.logoUrl : undefined;
+  
+  const createdAt = typeof r.createdAt === "string" ? Date.parse(r.createdAt) : null;
+  const mcap = num(r.marketCap);
+  const liq = num(r.liquidity);
+  const vol1h = num(r.volume1h);
+  
+  const deployer = typeof r.creator === "string" ? r.creator : "0x0000000000000000000000000000000000000000";
+  
   return {
     token,
     deployer,
-    factory,
-    blockNumber: log.blockNumber ? Number.parseInt(log.blockNumber, 16) : 0,
-    txHash: log.transactionHash || "",
-    timestampMs: null,
+    factory: ARCPAD_FACTORY,
+    blockNumber: 0,
+    txHash: "",
+    timestampMs: createdAt,
+    name,
+    symbol,
     chain: "arc",
     pad: "ARC",
+    mcapUsd: mcap,
+    liqUsd: liq,
+    vol1hUsd: vol1h,
+    logo,
+    graduated: false,
   };
 }
 
-async function fetchArcPadApi(name: string): Promise<{ launches: FactoryLaunch[]; health: HealthSource }> {
-  const t0 = Date.now();
-  try {
-    const res = await fetch("https://arcpad.meme/api/tokens", {
-      method: "GET",
-      headers: { accept: "application/json", "user-agent": "line-radar/1.0" },
-      signal: AbortSignal.timeout(4000),
-      cache: "no-store",
-    });
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    const raw = (await res.json()) as unknown;
-    const items = Array.isArray(raw) ? raw : [];
-    const launches: FactoryLaunch[] = [];
-    for (const item of items as ArcPadToken[]) {
-      if (item.chainId !== ARC_MAINNET_CHAIN_ID) continue;
-      const ca = item.address?.trim();
-      if (!ca || !/^0x[a-fA-F0-9]{40}$/.test(ca)) continue;
-      if (isProtocol(ca)) continue;
-      const timestampMs = item.createdAt ? Date.parse(item.createdAt) : null;
-      launches.push({
-        token: ca,
-        deployer: item.deployer || "0x0000000000000000000000000000000000000000",
-        factory: "",
-        blockNumber: 0,
-        txHash: "",
-        timestampMs: Number.isFinite(timestampMs) ? timestampMs : null,
-        chain: "arc",
-        pad: "ARC",
-        name: item.name,
-        symbol: item.symbol,
-        mcapUsd: item.marketCapUSD,
-        liqUsd: item.liquidityUSD,
-        vol1hUsd: item.volume24h,
-        logo: item.image,
-      });
-    }
-    return {
-      launches,
-      health: { name, ok: true, hits: 1, attempts: 1, ms: Date.now() - t0, detail: launches.length + " tokens" },
-    };
-  } catch (err) {
-    return { launches: [], health: fail(name, err, t0) };
-  }
+function mapO1ArcItem(row: unknown): FactoryLaunch | null {
+  const r = asRecord(row);
+  if (!r) return null;
+  const tokenObj = asRecord(r.token) || r;
+  const addrRaw = tokenObj.address || tokenObj.token || r.address || r.token_address;
+  const token = typeof addrRaw === "string" ? addrRaw : "";
+  if (!isEvmCa(token) || isProtocol(token)) return null;
+  const symbol = typeof tokenObj.symbol === "string" ? tokenObj.symbol : (typeof r.symbol === "string" ? r.symbol : undefined);
+  if (isQuoteAddr(token, symbol)) return null;
+  const name = typeof tokenObj.name === "string" ? tokenObj.name : (typeof r.name === "string" ? r.name : undefined);
+  const logo = typeof tokenObj.image_url === "string" ? tokenObj.image_url : (typeof r.image_url === "string" ? r.image_url : undefined);
+  const launch = asRecord(r.launch) || {};
+  const createdRaw = launch.created_at || r.created_at || r.launchAt || r.launched_at;
+  const created = typeof createdRaw === "string" ? Date.parse(createdRaw) : NaN;
+  const onchain = asRecord(launch.onchain) || {};
+  const md = asRecord(r.market_data);
+  const mcap = usdOf(md?.market_cap);
+  const liq = usdOf(md?.liquidity);
+  const activity = asRecord(md?.activity);
+  const win1h = asRecord(activity ? activity["1h"] : undefined);
+  const vol1h = usdOf(win1h?.volume_usd) ?? num(win1h?.volume_usd);
+  const deployer = typeof launch.creator_address === "string" ? launch.creator_address : "0x0000000000000000000000000000000000000000";
+  const tx = typeof onchain.transaction_hash === "string" ? onchain.transaction_hash : "";
+  const block = typeof onchain.block_number === "number" ? onchain.block_number : 0;
+  return {
+    token,
+    deployer,
+    factory: O1_ARC_FACTORY,
+    blockNumber: block,
+    txHash: tx,
+    timestampMs: Number.isFinite(created) ? created : null,
+    name,
+    symbol,
+    chain: "arc",
+    pad: "ARC",
+    mcapUsd: mcap,
+    liqUsd: liq,
+    vol1hUsd: vol1h,
+    logo,
+    graduated: false,
+  };
 }
 
-async function fetchArcFactories(name: string): Promise<{ launches: FactoryLaunch[]; health: HealthSource }> {
-  const rpcUrl = process.env.ARC_RPC_URL || ARC_RPC_DEFAULT;
-  const t0 = Date.now();
+type ArcPack = { launches: FactoryLaunch[]; health: HealthSource; at: number };
+
+let memCache: ArcPack | null = null;
+const lastGood: FactoryLaunch[] = [];
+let inflight: Promise<{ launches: FactoryLaunch[]; health: HealthSource }> | null = null;
+
+function lastPath(): string {
+  return path.join(LAST_DIR, "arc-last.json");
+}
+
+function readLastGood(): FactoryLaunch[] {
+  if (lastGood.length) return lastGood;
   try {
-    const headHex = await rpc<string>(rpcUrl, "eth_blockNumber", [], name);
-    const head = Number.parseInt(headHex, 16);
-    const from = Math.max(0, head - 80_000);
-    
-    const factories = [ARC_O1_FACTORY, ARC_ARCPAD_FACTORY];
-    const logJobs = factories.map(async (factory) => {
-      const logs = await rpc<RpcLog[]>(rpcUrl, "eth_getLogs", [{
-        address: factory,
-        fromBlock: "0x" + from.toString(16),
-        toBlock: "0x" + head.toString(16),
-        topics: [TOKEN_LAUNCHED_TOPIC0],
-      }], name);
-      return (logs || []).map((l) => parseArcFactoryLog(l, factory)).filter((x): x is FactoryLaunch => !!x);
-    });
-    
-    const results = await Promise.all(logJobs);
-    const launches = results.flat();
-    const now = Date.now();
-    for (const l of launches) {
-      if (l.blockNumber && head) l.timestampMs = now - ((head - l.blockNumber) / 10) * 1000;
+    const parsed = JSON.parse(fs.readFileSync(lastPath(), "utf8")) as unknown;
+    if (Array.isArray(parsed) && parsed.length) {
+      lastGood.push(...(parsed as FactoryLaunch[]));
+      return lastGood;
     }
-    
-    return {
-      launches,
-      health: { name, ok: true, hits: 1, attempts: 1, ms: Date.now() - t0, detail: launches.length + " launches" },
-    };
-  } catch (err) {
-    return { launches: [], health: fail(name, err, t0) };
+  } catch { /* none */ }
+  return [];
+}
+
+function writeLastGood(launches: FactoryLaunch[]) {
+  lastGood.length = 0;
+  lastGood.push(...launches);
+  try {
+    fs.mkdirSync(LAST_DIR, { recursive: true });
+    const tmp = lastPath() + ".tmp";
+    fs.writeFileSync(tmp, JSON.stringify(launches));
+    fs.renameSync(tmp, lastPath());
+  } catch { /* disk */ }
+}
+
+async function fetchArcPadApi(): Promise<FactoryLaunch[]> {
+  const res = await fetch(ARCPAD_API, {
+    headers: {
+      accept: "application/json",
+      "user-agent": "line-radar/1.0",
+    },
+    cache: "no-store",
+    signal: AbortSignal.timeout(8000),
+  });
+  
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  
+  const json = (await res.json()) as unknown;
+  const rec = asRecord(json);
+  
+  // Parse creations[], NOT tokens[]
+  const arr: unknown[] = Array.isArray(rec?.creations) ? rec.creations as unknown[] : [];
+  
+  const out: FactoryLaunch[] = [];
+  for (const item of arr) {
+    const mapped = mapArcPadItem(item);
+    if (mapped) out.push(mapped);
   }
+  return out;
+}
+
+async function fetchO1ArcApi(key: string): Promise<FactoryLaunch[]> {
+  const limit = 200;
+  const url = O1_LAUNCH_API + "?chain_id=" + ARC_CHAIN_ID + "&market=all&sort=trending&limit=" + limit;
+  const res = await fetch(url, {
+    headers: {
+      accept: "application/json",
+      "user-agent": "line-radar/1.0",
+      "x-api-key": key,
+    },
+    cache: "no-store",
+    signal: AbortSignal.timeout(8000),
+  });
+  if (res.status === 401) throw new Error("unauthorized");
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const json = (await res.json()) as unknown;
+  const rec = asRecord(json);
+  const arr: unknown[] = Array.isArray(json)
+    ? json
+    : Array.isArray(rec?.data)
+      ? rec!.data as unknown[]
+      : Array.isArray(rec?.tokens)
+        ? rec!.tokens as unknown[]
+        : [];
+  const out: FactoryLaunch[] = [];
+  for (const item of arr) {
+    const mapped = mapO1ArcItem(item);
+    if (mapped) out.push(mapped);
+  }
+  return out;
 }
 
 export async function harvestArc(): Promise<{ launches: FactoryLaunch[]; health: HealthSource }> {
-  const [apiResult, factoryResult] = await Promise.all([
-    fetchArcPadApi("Arc API"),
-    fetchArcFactories("Arc factories"),
-  ]);
+  const name = "arc";
   
-  // Merge launches, preferring API data
-  const map = new Map<string, FactoryLaunch>();
-  for (const l of apiResult.launches) {
-    map.set(l.token.toLowerCase(), l);
-  }
-  for (const l of factoryResult.launches) {
-    const key = l.token.toLowerCase();
-    if (!map.has(key)) {
-      map.set(key, l);
-    }
+  if (memCache && Date.now() - memCache.at < CACHE_MS) {
+    return { launches: memCache.launches, health: memCache.health };
   }
   
-  const launches = Array.from(map.values());
-  const totalHits = apiResult.health.hits + factoryResult.health.hits;
-  const totalAttempts = apiResult.health.attempts + factoryResult.health.attempts;
-  const allOk = apiResult.health.ok && factoryResult.health.ok;
+  if (inflight) return inflight;
   
-  if (launches.length === 0 && allOk) {
-    return {
-      launches: [],
-      health: {
-        name: "arc",
+  const run = (async () => {
+    const t0 = Date.now();
+    try {
+      const results = await Promise.allSettled([
+        fetchArcPadApi(),
+        (async () => {
+          const key = process.env.O1_API_KEY;
+          return key ? await fetchO1ArcApi(key) : [];
+        })(),
+      ]);
+      
+      const arcpadLaunches = results[0].status === "fulfilled" ? results[0].value : [];
+      const o1ArcLaunches = results[1].status === "fulfilled" ? results[1].value : [];
+      
+      const launches = [...arcpadLaunches, ...o1ArcLaunches];
+      
+      const arcpadHits = arcpadLaunches.length;
+      const o1ArcHits = o1ArcLaunches.length;
+      const totalHits = launches.length;
+      
+      const detail = arcpadHits > 0 || o1ArcHits > 0
+        ? `arcpad ${arcpadHits}${o1ArcHits > 0 ? `, o1-arc ${o1ArcHits}` : ""}`
+        : "arc wired, 0 tokens";
+      
+      const health: HealthSource = {
+        name,
         ok: true,
         hits: totalHits,
-        attempts: totalAttempts,
-        ms: apiResult.health.ms + factoryResult.health.ms,
-        detail: "arc wired, 0 tokens",
-      },
-    };
-  }
+        attempts: 1,
+        ms: Date.now() - t0,
+        detail,
+      };
+      writeLastGood(launches);
+      memCache = { launches, health, at: Date.now() };
+      return { launches, health };
+    } catch (err) {
+      const launches = readLastGood();
+      const health = fail(name, err, t0);
+      memCache = { launches, health, at: Date.now() };
+      return { launches, health };
+    }
+  })();
   
-  return {
-    launches,
-    health: {
-      name: "arc",
-      ok: allOk,
-      hits: totalHits,
-      attempts: totalAttempts,
-      ms: apiResult.health.ms + factoryResult.health.ms,
-      detail: launches.length + " tokens",
-    },
-  };
+  inflight = run;
+  try {
+    return await run;
+  } finally {
+    inflight = null;
+  }
 }

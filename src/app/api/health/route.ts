@@ -69,6 +69,22 @@ async function quickHealthProbe(): Promise<{ sources: HealthSource[]; lastSucces
     sources.push({ name: "o1 launch API chain 4663", ok: false, hits: 0, attempts: 1, ms: 2800, detail: "wall timeout" });
   }
 
+  // Add Arc health probe
+  const { harvestArc } = await import("@/lib/server/arc");
+  try {
+    const arcResult = await Promise.race([
+      harvestArc(),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000))
+    ]);
+    if (arcResult) {
+      sources.push(arcResult.health);
+    } else {
+      sources.push({ name: "arc", ok: false, hits: 0, attempts: 1, ms: 2000, detail: "timeout" });
+    }
+  } catch (err) {
+    sources.push({ name: "arc", ok: false, hits: 0, attempts: 1, ms: 0, detail: err instanceof Error ? err.message : String(err) });
+  }
+
   const anyOk = sources.some(s => s.ok);
   const lastSuccessAt = anyOk ? new Date().toISOString() : null;
   return { sources, lastSuccessAt };
