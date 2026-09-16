@@ -1,7 +1,7 @@
 import { isProtocol } from "@/lib/line/constants";
 import type { HealthSource } from "@/lib/line/types";
 import type { FactoryLaunch } from "./factory";
-import { fail, miss } from "./http";
+import { fail } from "./http";
 
 const ARC_MAINNET_CHAIN_ID = 5042;
 const ARC_RPC_DEFAULT = "https://rpc.mainnet.arc.io";

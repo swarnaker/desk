@@ -120,9 +120,9 @@ export const CHAINS: Record<
   arc: {
     slug: "arc",
     name: "Arc",
-    explorer: "https://arcscan.com/token/",
+    explorer: "https://explorer.arc.io/token/",
     dex: "https://dexscreener.com/arc/",
-    gmgn: "https://gmgn.ai/arc/token/",
+    gmgn: "",
   },
 };
 
