@@ -45,9 +45,10 @@ export function tx1h(row: TokenRow): number {
   return (row.buys ?? 0) + (row.sells ?? 0);
 }
 
-/** Hide unless vol1hUsd >= 5k OR watched. tx>=20 alone is not enough. */
+/** Hide unless vol1hUsd >= 5k OR watched. tx>=20 alone is not enough. ARC pad bypasses. */
 export function passesActivityGate(row: TokenRow, watchSet: Set<string> = new Set()): boolean {
   if (watched(row, watchSet)) return true;
+  if (row.pad === "ARC") return true;
   return (row.vol1hUsd ?? 0) >= ACTIVITY_VOL1H_USD;
 }
 
@@ -172,9 +173,9 @@ function matchRow(row: TokenRow, f: Filters, watchSet: Set<string>): boolean {
   // $30k+ survived Pons/O1 books bypass activity on Both (and Pons/O1 chips).
   if (!f.early && !passesActivityGate(row, watchSet) && !isPonsMcapBook(row, f, watchSet)) return false;
   if (isBoostedHidden(row) && !watched(row, watchSet)) return false;
-  // BOOK: hide 0 / missing 1h vol unless watched. NEW/STRETCH unchanged.
+  // BOOK: hide 0 / missing 1h vol unless watched. NEW/STRETCH unchanged. ARC pad bypasses.
   // Quiet $30k+ Pons/O1 books stay on Both (isPonsMcapBook).
-  if (!f.early && row.lane === "BOOK" && !((row.vol1hUsd ?? 0) > 0) && !watched(row, watchSet) && !isPonsMcapBook(row, f, watchSet)) return false;
+  if (!f.early && row.lane === "BOOK" && !((row.vol1hUsd ?? 0) > 0) && !watched(row, watchSet) && !isPonsMcapBook(row, f, watchSet) && row.pad !== "ARC") return false;
   if (!padMatches(row, f.pad)) return false;
   // Quote filter
   if (f.quoteFilter === "ETH" && row.quote !== "ETH" && row.quote !== "WETH") return false;
