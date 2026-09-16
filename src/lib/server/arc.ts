@@ -1,18 +1,26 @@
+import { isProtocol } from "@/lib/line/constants";
 import type { HealthSource } from "@/lib/line/types";
 import type { FactoryLaunch } from "./factory";
-import { fetchDexSearch } from "./dexscreener";
-import { isEvmCa } from "@/lib/line/ca";
-import { isProtocol, isQuoteAddr } from "@/lib/line/constants";
-import { mapDexChain } from "./classify";
-import { fail, miss } from "./http";
+import { fail } from "./http";
 
-const CACHE_MS = 5 * 60 * 1000;
-
-type CachePack = { launches: FactoryLaunch[]; health: HealthSource; at: number };
-let lastGood: CachePack | null = null;
-
-const ARC_CHAIN_ID = "5042";
+const ARC_MAINNET_CHAIN_ID = 5042;
+const ARC_RPC_DEFAULT = "https://rpc.mainnet.arc.io";
+const ARC_O1_FACTORY = "0xeE3E862Efde6DCd6DF5648AF0E2731B9D1dF4605";
+const ARC_ARCPAD_FACTORY = "0x24196cd6e534cfce8f480b53e70809b68ea86f29";
 const TOKEN_LAUNCHED_TOPIC0 = "0xdb51ea9ad51ab453a65a4cb7e60c3cb378c9501bb002609f8f97778fb6c4235a";
+
+type ArcPadToken = {
+  chainId?: number;
+  address?: string;
+  name?: string;
+  symbol?: string;
+  image?: string;
+  marketCapUSD?: number;
+  liquidityUSD?: number;
+  volume24h?: number;
+  deployer?: string;
+  createdAt?: string;
+};
 
 type RpcLog = {
   address?: string;
@@ -21,19 +29,6 @@ type RpcLog = {
   blockNumber?: string;
   transactionHash?: string;
 };
-
-function getArcFactories(): string[] {
-  const env = process.env.ARC_FACTORY || "";
-  if (!env.trim()) return [];
-  return env
-    .split(",")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0 && isEvmCa(s));
-}
-
-function getArcRpcUrl(): string {
-  return process.env.ARC_RPC_URL || "https://rpc.mainnet.arc.io";
-}
 
 function topicToAddress(topic: string | undefined): string | null {
   if (!topic || topic.length < 66) return null;
@@ -54,7 +49,7 @@ async function rpc<T>(url: string, method: string, params: unknown[], source: st
   return json.result as T;
 }
 
-function parseArcLog(log: RpcLog, factory: string): FactoryLaunch | null {
+function parseArcFactoryLog(log: RpcLog, factory: string): FactoryLaunch | null {
   const topics = log.topics || [];
   if (!topics[0] || topics[0].toLowerCase() !== TOKEN_LAUNCHED_TOPIC0) return null;
   const token = topicToAddress(topics[1]);
@@ -72,175 +67,132 @@ function parseArcLog(log: RpcLog, factory: string): FactoryLaunch | null {
   };
 }
 
-async function harvestArcDexScreener(): Promise<{ launches: FactoryLaunch[]; ok: boolean }> {
+async function fetchArcPadApi(name: string): Promise<{ launches: FactoryLaunch[]; health: HealthSource }> {
+  const t0 = Date.now();
   try {
-    // Try searching for "arc" to see if DexScreener has indexed Arc mainnet
-    const { items, health } = await fetchDexSearch("arc");
-    if (!health.ok || !items.length) return { launches: [], ok: false };
-
+    const res = await fetch("https://arcpad.meme/api/tokens", {
+      method: "GET",
+      headers: { accept: "application/json", "user-agent": "line-radar/1.0" },
+      signal: AbortSignal.timeout(4000),
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const raw = (await res.json()) as unknown;
+    const items = Array.isArray(raw) ? raw : [];
     const launches: FactoryLaunch[] = [];
-    const seen = new Set<string>();
-
-    for (const pair of items) {
-      // Only keep pairs on Arc chain (chainId 5042)
-      const chain = mapDexChain(pair.chainId);
-      if (chain !== "arc") continue;
-
-      const token = pair.baseToken?.address;
-      if (!token || !isEvmCa(token)) continue;
-      if (isProtocol(token)) continue;
-      if (isQuoteAddr(token, pair.baseToken?.symbol)) continue;
-
-      const key = token.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-
-      // Only keep USDC-quoted pairs
-      const quoteSymbol = (pair.quoteToken?.symbol || "").toUpperCase();
-      if (quoteSymbol !== "USDC") continue;
-
+    for (const item of items as ArcPadToken[]) {
+      if (item.chainId !== ARC_MAINNET_CHAIN_ID) continue;
+      const ca = item.address?.trim();
+      if (!ca || !/^0x[a-fA-F0-9]{40}$/.test(ca)) continue;
+      if (isProtocol(ca)) continue;
+      const timestampMs = item.createdAt ? Date.parse(item.createdAt) : null;
       launches.push({
-        token,
-        deployer: "0x0000000000000000000000000000000000000000",
+        token: ca,
+        deployer: item.deployer || "0x0000000000000000000000000000000000000000",
         factory: "",
         blockNumber: 0,
         txHash: "",
-        timestampMs: pair.pairCreatedAt ? pair.pairCreatedAt : null,
-        name: pair.baseToken?.name,
-        symbol: pair.baseToken?.symbol,
+        timestampMs: Number.isFinite(timestampMs) ? timestampMs : null,
         chain: "arc",
         pad: "ARC",
-        mcapUsd: pair.marketCap ?? pair.fdv,
-        liqUsd: pair.liquidity?.usd,
-        vol1hUsd: pair.volume?.h1,
-        logo: pair.info?.imageUrl,
-        graduated: true,
+        name: item.name,
+        symbol: item.symbol,
+        mcapUsd: item.marketCapUSD,
+        liqUsd: item.liquidityUSD,
+        vol1hUsd: item.volume24h,
+        logo: item.image,
       });
     }
-
-    return { launches, ok: launches.length > 0 };
-  } catch {
-    return { launches: [], ok: false };
+    return {
+      launches,
+      health: { name, ok: true, hits: 1, attempts: 1, ms: Date.now() - t0, detail: launches.length + " tokens" },
+    };
+  } catch (err) {
+    return { launches: [], health: fail(name, err, t0) };
   }
 }
 
-async function harvestArcFactory(): Promise<{ launches: FactoryLaunch[]; ok: boolean; detail: string }> {
-  const factories = getArcFactories();
-  if (!factories.length) return { launches: [], ok: false, detail: "no factories" };
-
-  const rpcUrl = getArcRpcUrl();
-  const allLaunches: FactoryLaunch[] = [];
-  const seen = new Set<string>();
-
+async function fetchArcFactories(name: string): Promise<{ launches: FactoryLaunch[]; health: HealthSource }> {
+  const rpcUrl = process.env.ARC_RPC_URL || ARC_RPC_DEFAULT;
+  const t0 = Date.now();
   try {
-    const headHex = await rpc<string>(rpcUrl, "eth_blockNumber", [], "arc factory");
+    const headHex = await rpc<string>(rpcUrl, "eth_blockNumber", [], name);
     const head = Number.parseInt(headHex, 16);
     const from = Math.max(0, head - 80_000);
-
-    for (const factory of factories) {
-      try {
-        const logs = await rpc<RpcLog[]>(rpcUrl, "eth_getLogs", [{
-          address: factory,
-          fromBlock: "0x" + from.toString(16),
-          toBlock: "0x" + head.toString(16),
-          topics: [TOKEN_LAUNCHED_TOPIC0],
-        }], "arc factory " + factory);
-
-        const launches = (logs || []).map((l) => parseArcLog(l, factory)).filter((x): x is FactoryLaunch => !!x);
-        const now = Date.now();
-        for (const l of launches) {
-          const key = l.token.toLowerCase();
-          if (seen.has(key)) continue;
-          seen.add(key);
-          if (l.blockNumber && head) l.timestampMs = now - ((head - l.blockNumber) / 10) * 1000;
-          allLaunches.push(l);
-        }
-      } catch {
-        // Skip this factory on error
-      }
+    
+    const factories = [ARC_O1_FACTORY, ARC_ARCPAD_FACTORY];
+    const logJobs = factories.map(async (factory) => {
+      const logs = await rpc<RpcLog[]>(rpcUrl, "eth_getLogs", [{
+        address: factory,
+        fromBlock: "0x" + from.toString(16),
+        toBlock: "0x" + head.toString(16),
+        topics: [TOKEN_LAUNCHED_TOPIC0],
+      }], name);
+      return (logs || []).map((l) => parseArcFactoryLog(l, factory)).filter((x): x is FactoryLaunch => !!x);
+    });
+    
+    const results = await Promise.all(logJobs);
+    const launches = results.flat();
+    const now = Date.now();
+    for (const l of launches) {
+      if (l.blockNumber && head) l.timestampMs = now - ((head - l.blockNumber) / 10) * 1000;
     }
-
-    return { 
-      launches: allLaunches, 
-      ok: true, 
-      detail: allLaunches.length > 0 ? `${allLaunches.length} arc tokens (factory)` : "arc factory wired, 0 tokens"
+    
+    return {
+      launches,
+      health: { name, ok: true, hits: 1, attempts: 1, ms: Date.now() - t0, detail: launches.length + " launches" },
     };
-  } catch {
-    return { launches: [], ok: false, detail: "factory rpc error" };
+  } catch (err) {
+    return { launches: [], health: fail(name, err, t0) };
   }
 }
 
 export async function harvestArc(): Promise<{ launches: FactoryLaunch[]; health: HealthSource }> {
-  const cached = lastGood;
-  if (cached && Date.now() - cached.at < CACHE_MS) {
-    return { 
-      launches: cached.launches, 
-      health: { ...cached.health, ms: 0, detail: (cached.health.detail || "") + " (cached)" } 
-    };
+  const [apiResult, factoryResult] = await Promise.all([
+    fetchArcPadApi("Arc API"),
+    fetchArcFactories("Arc factories"),
+  ]);
+  
+  // Merge launches, preferring API data
+  const map = new Map<string, FactoryLaunch>();
+  for (const l of apiResult.launches) {
+    map.set(l.token.toLowerCase(), l);
   }
-
-  const t0 = Date.now();
-  const source = "arc";
-
-  try {
-    // Try DexScreener first
-    const dexResult = await harvestArcDexScreener();
-    
-    // If DexScreener has tokens, use those
-    if (dexResult.ok && dexResult.launches.length > 0) {
-      const ms = Date.now() - t0;
-      const health: HealthSource = {
-        name: source,
-        ok: true,
-        hits: 1,
-        attempts: 1,
-        ms,
-        detail: `${dexResult.launches.length} arc tokens (dex)`,
-      };
-      lastGood = { launches: dexResult.launches, health, at: Date.now() };
-      return { launches: dexResult.launches, health };
+  for (const l of factoryResult.launches) {
+    const key = l.token.toLowerCase();
+    if (!map.has(key)) {
+      map.set(key, l);
     }
-
-    // Fallback to factory
-    const factoryResult = await harvestArcFactory();
-    if (factoryResult.ok && factoryResult.launches.length > 0) {
-      const ms = Date.now() - t0;
-      const health: HealthSource = {
-        name: source,
-        ok: true,
-        hits: 1,
-        attempts: 1,
-        ms,
-        detail: factoryResult.detail,
-      };
-      lastGood = { launches: factoryResult.launches, health, at: Date.now() };
-      return { launches: factoryResult.launches, health };
-    }
-
-    // Both empty but wired - return [] with "arc wired, 0 tokens"
-    const ms = Date.now() - t0;
-    const health: HealthSource = {
-      name: source,
-      ok: true,
-      hits: 1,
-      attempts: 1,
-      ms,
-      detail: factoryResult.ok ? factoryResult.detail : "arc wired, 0 tokens",
-    };
-    
-    return { launches: [], health };
-  } catch (err) {
-    const ms = Date.now() - t0;
+  }
+  
+  const launches = Array.from(map.values());
+  const totalHits = apiResult.health.hits + factoryResult.health.hits;
+  const totalAttempts = apiResult.health.attempts + factoryResult.health.attempts;
+  const allOk = apiResult.health.ok && factoryResult.health.ok;
+  
+  if (launches.length === 0 && allOk) {
     return {
       launches: [],
       health: {
-        name: source,
-        ok: false,
-        hits: 0,
-        attempts: 1,
-        ms,
-        detail: err instanceof Error ? err.message : "not wired",
+        name: "arc",
+        ok: true,
+        hits: totalHits,
+        attempts: totalAttempts,
+        ms: apiResult.health.ms + factoryResult.health.ms,
+        detail: "arc wired, 0 tokens",
       },
     };
   }
+  
+  return {
+    launches,
+    health: {
+      name: "arc",
+      ok: allOk,
+      hits: totalHits,
+      attempts: totalAttempts,
+      ms: apiResult.health.ms + factoryResult.health.ms,
+      detail: launches.length + " tokens",
+    },
+  };
 }

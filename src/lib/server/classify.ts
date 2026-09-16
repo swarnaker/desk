@@ -101,6 +101,7 @@ export function classifyPad(c: Cand): Pad {
   if (tick === "CASHCAT") return "BASE"; // RH mascot, not a Pons launch
   if (tick === "PONS") return "PONS";
   if (c.chain === "solana") return "PUMP";
+  if (c.chain === "arc") return "ARC";
   if (c.factory?.pad === "O1" || looksO1(c)) return "O1";
   // Pad PONS only from catalog / factory V1/V2 — never every robinhood Dex hit.
   if (hasPonsOfficial(c)) return "PONS";
