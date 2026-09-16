@@ -52,6 +52,28 @@ export function passesActivityGate(row: TokenRow, watchSet: Set<string> = new Se
   return (row.vol1hUsd ?? 0) >= ACTIVITY_VOL1H_USD;
 }
 
+/** ARC quality gate: hide unless mcapUsd >= 30k OR vol1hUsd >= 5k OR watched OR seeded CA.
+ * Seeded CAs are explicit pins and always pass. */
+export function passesArcQualityGate(row: TokenRow, watchSet: Set<string> = new Set()): boolean {
+  if (row.pad !== "ARC") return true;
+  if (watched(row, watchSet)) return true;
+  
+  // Seeded CAs (explicit pins) always pass
+  const ca = row.ca.toLowerCase();
+  const isSeeded = [
+    "0xece5ca8bf9220718e5727754026757512212cb3c", // ARGUS
+    "0xbc43ce8dec648ea298c4275559b81d6261c90b67", // TOLLY
+    "0xeb64987643db71c76b2a2be7e723decc995e5b37", // COOL
+    "0x07704b06981ea962b87296362a1281484d160000", // ARCAT
+    "0x2164bb17a2d38c1b5170e987b2c0416df1efc752", // LONG
+  ].includes(ca);
+  if (isSeeded) return true;
+  
+  const mcapOk = (row.mcapUsd ?? 0) >= 30000;
+  const volOk = (row.vol1hUsd ?? 0) >= 5000;
+  return mcapOk || volOk;
+}
+
 function watched(row: TokenRow, watchSet: Set<string>): boolean {
   const ca = row.ca.toLowerCase();
   return watchSet.has(ca) || watchSet.has(row.id.toLowerCase());
@@ -172,6 +194,8 @@ function matchRow(row: TokenRow, f: Filters, watchSet: Set<string>): boolean {
   // EARLY already required buyers>=20 or $5k/h. Do not also demand the $5k All-board gate.
   // $30k+ survived Pons/O1 books bypass activity on Both (and Pons/O1 chips).
   if (!f.early && !passesActivityGate(row, watchSet) && !isPonsMcapBook(row, f, watchSet)) return false;
+  // ARC quality gate: mcap >= 30k OR vol1hUsd >= 5k OR watched
+  if (!passesArcQualityGate(row, watchSet)) return false;
   if (isBoostedHidden(row) && !watched(row, watchSet)) return false;
   // BOOK: hide 0 / missing 1h vol unless watched. NEW/STRETCH unchanged. ARC pad bypasses.
   // Quiet $30k+ Pons/O1 books stay on Both (isPonsMcapBook).

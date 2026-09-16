@@ -23,6 +23,19 @@ function useRadar(enabled: boolean) {
   });
 }
 
+function useArcRadar(enabled: boolean) {
+  return useQuery({
+    queryKey: ["radar-arc"],
+    queryFn: async () => {
+      const res = await fetch("/api/radar?pad=ARC", { cache: "no-store" });
+      if (!res.ok) return null;
+      return (await res.json()) as RadarPayload;
+    },
+    enabled,
+    refetchInterval: 20_000,
+  });
+}
+
 export function Header({ signedIn = false }: { signedIn?: boolean }) {
   async function onLogout() {
     try {
@@ -36,12 +49,14 @@ export function Header({ signedIn = false }: { signedIn?: boolean }) {
   const [q, setQ] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const { data } = useRadar(signedIn && path !== "/login");
+  const { data: arcData } = useArcRadar(signedIn && path !== "/login");
   const watch = useWatch();
   useRunnerAlerts(data ?? undefined, watch.ids, watch.file.items.length);
   const tokens = data?.tokens || [];
+  const arcTokens = arcData?.tokens || [];
   const pons = tokens.filter((t) => t.pad === "PONS" && isSurvived(t) && (t.mcapUsd ?? 0) >= PONS_MCAP_BOOK_USD).length;
   const o1 = tokens.filter((t) => t.pad === "O1" && isSurvived(t) && (t.mcapUsd ?? 0) >= PONS_MCAP_BOOK_USD).length;
-  const arc = tokens.filter((t) => t.pad === "ARC" && isSurvived(t)).length;
+  const arc = arcTokens.filter((t) => t.pad === "ARC" && isSurvived(t)).length;
   const live = data && !data.stale;
   const copiesHidden = data?.banners?.sameNameCopiesHidden ?? 0;
 

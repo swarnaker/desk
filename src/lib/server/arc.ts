@@ -5,6 +5,7 @@ import { isProtocol, isQuoteAddr, O1_LAUNCH_API } from "@/lib/line/constants";
 import type { HealthSource } from "@/lib/line/types";
 import type { FactoryLaunch } from "./factory";
 import { fail } from "./http";
+import { fetchTokensV1Batched, numOrNull, type DexPair } from "./dexscreener";
 
 const CACHE_MS = 60_000;
 const LAST_DIR = path.join(process.cwd(), "data");
@@ -16,6 +17,20 @@ const ARC_CHAIN_ID = 5042;
 // Arc factories
 const O1_ARC_FACTORY = "0xeE3E862Efde6DCd6DF5648AF0E2731B9D1dF4605";
 const ARCPAD_FACTORY = "0x24196cd6e534cfce8f480b53e70809b68ea86f29";
+
+// Seeded ARC tokens (explicit pins - always visible)
+const SEEDED_ARC_TOKENS: Array<{ ca: string; symbol: string; name: string }> = [
+  { ca: "0xeCe5cA8bf9220718E5727754026757512212cb3c", symbol: "ARGUS", name: "ARGUS" },
+  { ca: "0xbc43ce8dec648ea298c4275559b81d6261c90b67", symbol: "TOLLY", name: "TOLLY" },
+  { ca: "0xeb64987643db71c76b2a2be7e723decc995e5b37", symbol: "COOL", name: "COOL" },
+  { ca: "0x07704b06981ea962b87296362a1281484d160000", symbol: "ARCAT", name: "ARCAT" },
+  { ca: "0x2164bb17a2d38c1b5170e987b2c0416df1efc752", symbol: "LONG", name: "LONG" },
+];
+
+// Set of seeded CAs (lowercase) for quality gate bypass
+export const SEEDED_ARC_CAS = new Set(
+  SEEDED_ARC_TOKENS.map(t => t.ca.toLowerCase())
+);
 
 function num(v: unknown): number | undefined {
   if (v == null || v === "") return undefined;
@@ -292,6 +307,72 @@ async function fetchO1ArcApi(key: string): Promise<FactoryLaunch[]> {
   return out;
 }
 
+function createSeededArcTokens(): FactoryLaunch[] {
+  return SEEDED_ARC_TOKENS.map(seed => ({
+    token: seed.ca,
+    deployer: "0x0000000000000000000000000000000000000000",
+    factory: ARCPAD_FACTORY,
+    blockNumber: 0,
+    txHash: "",
+    timestampMs: null,
+    name: seed.name,
+    symbol: seed.symbol,
+    chain: "arc" as const,
+    pad: "ARC" as const,
+    mcapUsd: undefined,
+    liqUsd: undefined,
+    vol1hUsd: undefined,
+    logo: undefined,
+    graduated: true,
+  }));
+}
+
+async function enrichArcLaunchesWithDex(launches: FactoryLaunch[]): Promise<FactoryLaunch[]> {
+  if (!launches.length) return launches;
+  
+  // Fetch DexScreener data for chainId 5042 (Arc)
+  const addresses = launches.map(l => l.token);
+  const { items } = await fetchTokensV1Batched("5042", addresses, 30, 4);
+  
+  // Build map of CA -> best pair (highest liquidity)
+  const pairMap = new Map<string, DexPair>();
+  for (const pair of items) {
+    const ca = pair.baseToken?.address?.toLowerCase();
+    if (!ca) continue;
+    
+    const existing = pairMap.get(ca);
+    const newLiq = numOrNull(pair.liquidity?.usd) ?? 0;
+    const existingLiq = existing ? (numOrNull(existing.liquidity?.usd) ?? 0) : 0;
+    
+    if (!existing || newLiq > existingLiq) {
+      pairMap.set(ca, pair);
+    }
+  }
+  
+  // Enrich launches with Dex data
+  return launches.map(launch => {
+    const pair = pairMap.get(launch.token.toLowerCase());
+    if (!pair) return launch;
+    
+    const mcap = numOrNull(pair.marketCap) ?? numOrNull(pair.fdv);
+    const liq = numOrNull(pair.liquidity?.usd);
+    const vol1h = numOrNull(pair.volume?.h1);
+    const logo = pair.info?.imageUrl;
+    const name = pair.baseToken?.name || launch.name;
+    const symbol = pair.baseToken?.symbol || launch.symbol;
+    
+    return {
+      ...launch,
+      mcapUsd: mcap ?? launch.mcapUsd,
+      liqUsd: liq ?? launch.liqUsd,
+      vol1hUsd: vol1h ?? launch.vol1hUsd,
+      logo: logo || launch.logo,
+      name: name || launch.name,
+      symbol: symbol || launch.symbol,
+    };
+  });
+}
+
 export async function harvestArc(): Promise<{ launches: FactoryLaunch[]; health: HealthSource }> {
   const name = "arc";
   
@@ -304,6 +385,9 @@ export async function harvestArc(): Promise<{ launches: FactoryLaunch[]; health:
   const run = (async () => {
     const t0 = Date.now();
     try {
+      // Create seeded tokens first
+      const seededLaunches = createSeededArcTokens();
+      
       // Fetch Argus first, then ArcPad, then o1 Arc
       const results = await Promise.allSettled([
         fetchArgusApi(),
@@ -318,7 +402,30 @@ export async function harvestArc(): Promise<{ launches: FactoryLaunch[]; health:
       const arcpadLaunches = results[1].status === "fulfilled" ? results[1].value : [];
       const o1ArcLaunches = results[2].status === "fulfilled" ? results[2].value : [];
       
-      const launches = [...argusLaunches, ...arcpadLaunches, ...o1ArcLaunches];
+      // Merge seeded tokens with API results, deduping by CA
+      const seenCAs = new Set<string>();
+      const mergedLaunches: FactoryLaunch[] = [];
+      
+      // First add API results (they have priority for enrichment)
+      for (const launch of [...argusLaunches, ...arcpadLaunches, ...o1ArcLaunches]) {
+        const ca = launch.token.toLowerCase();
+        if (!seenCAs.has(ca)) {
+          seenCAs.add(ca);
+          mergedLaunches.push(launch);
+        }
+      }
+      
+      // Then add seeded tokens that aren't already present
+      for (const seed of seededLaunches) {
+        const ca = seed.token.toLowerCase();
+        if (!seenCAs.has(ca)) {
+          seenCAs.add(ca);
+          mergedLaunches.push(seed);
+        }
+      }
+      
+      // Enrich all launches with DexScreener data for chainId 5042
+      const launches = await enrichArcLaunchesWithDex(mergedLaunches);
       
       const argusHits = argusLaunches.length;
       const arcpadHits = arcpadLaunches.length;
