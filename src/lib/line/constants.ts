@@ -117,6 +117,13 @@ export const CHAINS: Record<
     dex: "https://dexscreener.com/solana/",
     gmgn: "https://gmgn.ai/sol/token/",
   },
+  arc: {
+    slug: "arc",
+    name: "Arc",
+    explorer: "https://explorer.arc.io/token/",
+    dex: "https://dexscreener.com/arc/",
+    gmgn: "",
+  },
 };
 
 export const COPY = {

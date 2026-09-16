@@ -27,6 +27,7 @@ export function mapDexChain(id?: string): Chain | null {
   if (c === "robinhood" || c === "rh" || c === "4663") return "robinhood";
   if (c === "base" || c === "8453") return "base";
   if (c === "solana" || c === "sol") return "solana";
+  if (c === "arc" || c === "5042") return "arc";
   return null;
 }
 
@@ -106,10 +107,12 @@ export function classifyPad(c: Cand): Pad {
   if (c.factory?.pad === "LONG") return "LONG";
   if (c.factory?.pad === "VIRTUALS") return "VIRTUALS";
   if (c.factory?.pad === "CLANKER") return "CLANKER";
+  if (c.factory?.pad === "ARC") return "ARC";
   for (const s of c.sources) {
     if (s === "longxyz" || s.startsWith("longxyz:")) return "LONG";
     if (s === "virtuals" || s.startsWith("virtuals:")) return "VIRTUALS";
     if (s === "clanker" || s.startsWith("clanker:")) return "CLANKER";
+    if (s === "arc" || s.startsWith("arc:")) return "ARC";
   }
   return "BASE";
 }
