@@ -10,6 +10,7 @@ const CACHE_MS = 60_000;
 const LAST_DIR = path.join(process.cwd(), "data");
 
 const ARCPAD_API = "https://arcpad.meme/api/tokens";
+const ARGUS_API = "https://argus.world/api/tokens";
 const ARC_CHAIN_ID = 5042;
 
 // Arc factories
@@ -32,26 +33,71 @@ function usdOf(obj: unknown): number | undefined {
   return num(rec.usd);
 }
 
-function mapArcPadItem(row: unknown): FactoryLaunch | null {
+function mapArcPadItem(row: unknown, topLevelChainId?: number): FactoryLaunch | null {
   const r = asRecord(row);
   if (!r) return null;
   
-  const chainId = num(r.chainId);
+  // Accept chainId from item or top-level parameter
+  const chainId = num(r.chainId) ?? topLevelChainId;
   if (chainId !== ARC_CHAIN_ID) return null;
 
-  const token = typeof r.address === "string" ? r.address : "";
+  // ArcPad API uses 'token' field for CA
+  const token = typeof r.token === "string" ? r.token : "";
   if (!isEvmCa(token) || isProtocol(token)) return null;
   
   const symbol = typeof r.symbol === "string" ? r.symbol : undefined;
   if (isQuoteAddr(token, symbol)) return null;
   
   const name = typeof r.name === "string" ? r.name : undefined;
-  const logo = typeof r.logoUrl === "string" ? r.logoUrl : undefined;
+  const logo = typeof r.imageURI === "string" ? r.imageURI : undefined;
+  
+  const timestampSec = num(r.timestamp);
+  const timestampMs = timestampSec ? timestampSec * 1000 : null;
+  const mcap = num(r.marketCapUsd);
+  const vol24 = num(r.volume24Usd);
+  
+  const deployer = typeof r.creator === "string" ? r.creator : "0x0000000000000000000000000000000000000000";
+  
+  return {
+    token,
+    deployer,
+    factory: ARCPAD_FACTORY,
+    blockNumber: 0,
+    txHash: "",
+    timestampMs,
+    name,
+    symbol,
+    chain: "arc",
+    pad: "ARC",
+    mcapUsd: mcap,
+    liqUsd: undefined,
+    vol1hUsd: vol24,
+    logo,
+    graduated: false,
+  };
+}
+
+function mapArgusItem(row: unknown, topLevelChainId?: number): FactoryLaunch | null {
+  const r = asRecord(row);
+  if (!r) return null;
+  
+  // Accept chainId from item or top-level parameter
+  const chainId = num(r.chainId) ?? topLevelChainId;
+  if (chainId !== ARC_CHAIN_ID) return null;
+
+  // Argus should have address field
+  const token = typeof r.address === "string" ? r.address : (typeof r.token === "string" ? r.token : "");
+  if (!isEvmCa(token) || isProtocol(token)) return null;
+  
+  const symbol = typeof r.symbol === "string" ? r.symbol : undefined;
+  if (isQuoteAddr(token, symbol)) return null;
+  
+  const name = typeof r.name === "string" ? r.name : undefined;
+  const logo = typeof r.logoUrl === "string" ? r.logoUrl : (typeof r.imageURI === "string" ? r.imageURI : undefined);
   
   const createdAt = typeof r.createdAt === "string" ? Date.parse(r.createdAt) : null;
-  const mcap = num(r.marketCap);
-  const liq = num(r.liquidity);
-  const vol1h = num(r.volume1h);
+  const mcap = num(r.marketCap) ?? num(r.marketCapUsd);
+  const vol24 = num(r.volume24h) ?? num(r.volume24Usd);
   
   const deployer = typeof r.creator === "string" ? r.creator : "0x0000000000000000000000000000000000000000";
   
@@ -67,8 +113,8 @@ function mapArcPadItem(row: unknown): FactoryLaunch | null {
     chain: "arc",
     pad: "ARC",
     mcapUsd: mcap,
-    liqUsd: liq,
-    vol1hUsd: vol1h,
+    liqUsd: undefined,
+    vol1hUsd: vol24,
     logo,
     graduated: false,
   };
@@ -165,12 +211,51 @@ async function fetchArcPadApi(): Promise<FactoryLaunch[]> {
   const json = (await res.json()) as unknown;
   const rec = asRecord(json);
   
+  // Get top-level chainId
+  const topLevelChainId = num(rec?.chainId);
+  
   // Parse creations[], NOT tokens[]
   const arr: unknown[] = Array.isArray(rec?.creations) ? rec.creations as unknown[] : [];
   
   const out: FactoryLaunch[] = [];
   for (const item of arr) {
-    const mapped = mapArcPadItem(item);
+    const mapped = mapArcPadItem(item, topLevelChainId);
+    if (mapped) out.push(mapped);
+  }
+  return out;
+}
+
+async function fetchArgusApi(): Promise<FactoryLaunch[]> {
+  const res = await fetch(ARGUS_API, {
+    headers: {
+      accept: "application/json",
+      "user-agent": "line-radar/1.0",
+    },
+    cache: "no-store",
+    signal: AbortSignal.timeout(12000),
+    redirect: "follow",
+  });
+  
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  
+  const json = (await res.json()) as unknown;
+  const rec = asRecord(json);
+  
+  // Get top-level chainId
+  const topLevelChainId = num(rec?.chainId);
+  
+  // Try different array fields
+  const arr: unknown[] = Array.isArray(json)
+    ? json
+    : Array.isArray(rec?.tokens)
+      ? rec!.tokens as unknown[]
+      : Array.isArray(rec?.creations)
+        ? rec!.creations as unknown[]
+        : [];
+  
+  const out: FactoryLaunch[] = [];
+  for (const item of arr) {
+    const mapped = mapArgusItem(item, topLevelChainId);
     if (mapped) out.push(mapped);
   }
   return out;
@@ -219,7 +304,9 @@ export async function harvestArc(): Promise<{ launches: FactoryLaunch[]; health:
   const run = (async () => {
     const t0 = Date.now();
     try {
+      // Fetch Argus first, then ArcPad, then o1 Arc
       const results = await Promise.allSettled([
+        fetchArgusApi(),
         fetchArcPadApi(),
         (async () => {
           const key = process.env.O1_API_KEY;
@@ -227,18 +314,27 @@ export async function harvestArc(): Promise<{ launches: FactoryLaunch[]; health:
         })(),
       ]);
       
-      const arcpadLaunches = results[0].status === "fulfilled" ? results[0].value : [];
-      const o1ArcLaunches = results[1].status === "fulfilled" ? results[1].value : [];
+      const argusLaunches = results[0].status === "fulfilled" ? results[0].value : [];
+      const arcpadLaunches = results[1].status === "fulfilled" ? results[1].value : [];
+      const o1ArcLaunches = results[2].status === "fulfilled" ? results[2].value : [];
       
-      const launches = [...arcpadLaunches, ...o1ArcLaunches];
+      const launches = [...argusLaunches, ...arcpadLaunches, ...o1ArcLaunches];
       
+      const argusHits = argusLaunches.length;
       const arcpadHits = arcpadLaunches.length;
-      const o1ArcHits = o1ArcLaunches.length;
       const totalHits = launches.length;
       
-      const detail = arcpadHits > 0 || o1ArcHits > 0
-        ? `arcpad ${arcpadHits}${o1ArcHits > 0 ? `, o1-arc ${o1ArcHits}` : ""}`
-        : "arc wired, 0 tokens";
+      // Format detail as "argus N / arcpad M" or "arcpad N" or "arc wired, 0 tokens"
+      let detail: string;
+      if (totalHits === 0) {
+        detail = "arc wired, 0 tokens";
+      } else if (argusHits > 0 && arcpadHits > 0) {
+        detail = `argus ${argusHits} / arcpad ${arcpadHits}`;
+      } else if (argusHits > 0) {
+        detail = `argus ${argusHits}`;
+      } else {
+        detail = `arcpad ${arcpadHits}`;
+      }
       
       const health: HealthSource = {
         name,
