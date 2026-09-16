@@ -41,6 +41,7 @@ export function Header({ signedIn = false }: { signedIn?: boolean }) {
   const tokens = data?.tokens || [];
   const pons = tokens.filter((t) => t.pad === "PONS" && isSurvived(t) && (t.mcapUsd ?? 0) >= PONS_MCAP_BOOK_USD).length;
   const o1 = tokens.filter((t) => t.pad === "O1" && isSurvived(t) && (t.mcapUsd ?? 0) >= PONS_MCAP_BOOK_USD).length;
+  const arc = tokens.filter((t) => t.pad === "ARC" && isSurvived(t)).length;
   const live = data && !data.stale;
   const copiesHidden = data?.banners?.sameNameCopiesHidden ?? 0;
 
@@ -125,7 +126,7 @@ export function Header({ signedIn = false }: { signedIn?: boolean }) {
           <button type="submit" className="chip chip-on shrink-0 tracking-[0.14em]">Search</button>
         </form>
         <div className="font-mono text-xs tabular text-mute">
-          Pons {pons} · O1 {o1}
+          Pons {pons} · O1 {o1} · Arc {arc}
         </div>
       </div>
     </header>
