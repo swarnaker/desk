@@ -1,5 +1,5 @@
-export type Chain = "robinhood" | "base" | "solana";
-export type Pad = "PONS" | "O1" | "BASE" | "PUMP" | "LONG" | "VIRTUALS" | "CLANKER";
+export type Chain = "robinhood" | "base" | "solana" | "arc";
+export type Pad = "PONS" | "O1" | "BASE" | "PUMP" | "LONG" | "VIRTUALS" | "CLANKER" | "ARC";
 export type Lane = "NEW" | "STRETCH" | "BOOK";
 export type Stage =
   | "FACTORY"

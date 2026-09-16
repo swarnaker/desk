@@ -28,9 +28,9 @@ export const DEFAULT_FILTERS: Filters = {
   quoteFilter: "ALL",
 };
 
-/** PUMP/PONS/O1/BASE/LONG/VIRTUALS/CLANKER exact. BOTH, ALL, or omitted = PONS or O1 only (not PUMP, not BASE, not LONG, not VIRTUALS, not CLANKER). */
+/** PUMP/PONS/O1/BASE/LONG/VIRTUALS/CLANKER/ARC exact. BOTH, ALL, or omitted = PONS or O1 only (not PUMP, not BASE, not LONG, not VIRTUALS, not CLANKER, not ARC). */
 export function padMatches(row: { pad: string }, pad?: Filters["pad"]): boolean {
-  if (pad === "PUMP" || pad === "PONS" || pad === "O1" || pad === "BASE" || pad === "LONG" || pad === "VIRTUALS" || pad === "CLANKER") return row.pad === pad;
+  if (pad === "PUMP" || pad === "PONS" || pad === "O1" || pad === "BASE" || pad === "LONG" || pad === "VIRTUALS" || pad === "CLANKER" || pad === "ARC") return row.pad === pad;
   return row.pad === "PONS" || row.pad === "O1";
 }
 

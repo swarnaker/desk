@@ -33,5 +33,5 @@ export function parseSearch(raw: string): { kind: "evm" | "sol" | "invalid"; ca:
 }
 
 export function isChain(v: string): v is Chain {
-  return v === "robinhood" || v === "base" || v === "solana";
+  return v === "robinhood" || v === "base" || v === "solana" || v === "arc";
 }
